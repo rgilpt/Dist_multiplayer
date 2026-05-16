@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://cmap1234567"]
+
+[ext_resource type="Script" uid="uid://ddewc22xjlbcp" path="res://Scripts/LevelBuilder.gd" id="1"]
+
+[node name="Map" type="TileMapLayer" unique_id=105044949]
+texture_filter = 1
+script = ExtResource("1")

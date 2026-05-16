@@ -1,0 +1,55 @@
+[gd_scene format=3 uid="uid://d0a1b2c3d4e5"]
+
+[ext_resource type="Script" uid="uid://duhdul0h3ibqb" path="res://Scripts/Player.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://pgo1cadf20q5" path="res://icon.svg" id="2_kyqiw"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_kyqiw"]
+size = Vector2(128, 128)
+
+[node name="Player" type="CharacterBody2D" unique_id=1494528578]
+script = ExtResource("1")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=199944164]
+enabled = false
+
+[node name="Sprite" type="Sprite2D" parent="." unique_id=2107987906]
+texture = ExtResource("2_kyqiw")
+region_rect = Rect2(0, 0, 32, 32)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=333763636]
+shape = SubResource("RectangleShape2D_kyqiw")
+
+[node name="WeaponHolder" type="Node2D" parent="." unique_id=2100537290]
+
+[node name="FlagArea" type="Area2D" parent="." unique_id=109476146]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="FlagArea" unique_id=334954545]
+
+[node name="HomeZoneArea" type="Area2D" parent="." unique_id=1280799371]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HomeZoneArea" unique_id=427232630]
+
+[node name="P1Zone" type="ColorRect" parent="HomeZoneArea" unique_id=472180080]
+visible = false
+color = Color(0.2, 0.8, 0.3, 0.3)
+
+[node name="P2Zone" type="ColorRect" parent="HomeZoneArea" unique_id=980094483]
+visible = false
+color = Color(0.8, 0.2, 0.3, 0.3)
+
+[node name="AmmoUI" type="Label" parent="." unique_id=1138871616]
+offset_left = -61.0
+offset_top = -94.0
+offset_right = 8.0
+offset_bottom = -71.0
+text = "Ammo: 6"
+
+[node name="ScoreUI" type="Label" parent="." unique_id=551945954]
+offset_left = -61.0
+offset_top = -120.0
+offset_bottom = -97.0
+text = "Score: 0"
+
+[node name="FlagIndicator" type="ColorRect" parent="." unique_id=1356446965]
+visible = false
+color = Color(1, 1, 0, 0.5)

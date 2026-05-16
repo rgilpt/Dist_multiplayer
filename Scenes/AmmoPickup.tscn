@@ -1,0 +1,28 @@
+[gd_scene load_steps=2 format=3 uid="uid://a1m2m3p4i5c6"]
+
+[ext_resource type="Texture2D" path="res://Assets/tilesets/GlitchHouse.png" id=1]
+
+[sub_resource type="RectangleShape2D" id=2]
+size = Vector2(24, 24)
+
+[sub_resource type="RectangleShape2D" id=3]
+size = Vector2(48, 48)
+
+[node name="AmmoPickup" type="StaticBody2D"]
+position = Vector2(-250, -150)
+collision_layer = 1
+collision_mask = 1
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture = ExtResource("1")
+region_rect = Rect2(64, 32, 32, 32)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = {2}
+
+[node name="PickupArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PickupArea"]
+shape = {3}

@@ -1,0 +1,73 @@
+[gd_scene format=3 uid="uid://d4bp2vje74nh8"]
+
+[ext_resource type="Theme" uid="uid://bavs4r0rlxxn5" path="res://Assets/BlueButtonTeam.tres" id="1_irtk0"]
+[ext_resource type="Script" uid="uid://btx5bhn0vpmh8" path="res://Scripts/team_select.gd" id="1_srwfa"]
+[ext_resource type="Theme" uid="uid://uu255rt0ftq1" path="res://Assets/RedButtonTeam.tres" id="2_srwfa"]
+
+[node name="TeamSelect" type="Control" unique_id=1362580167]
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_srwfa")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1626397265]
+custom_minimum_size = Vector2(400, 400)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -100.0
+offset_top = -100.0
+offset_right = 100.0
+offset_bottom = 100.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.9019608)
+
+[node name="Content" type="VBoxContainer" parent="." unique_id=735543251]
+custom_minimum_size = Vector2(300, 200)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -100.0
+offset_top = -100.0
+offset_right = 100.0
+offset_bottom = 100.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="Label" type="Label" parent="Content" unique_id=1313214453]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Select your Team"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Content" unique_id=1114888538]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 3
+theme_override_constants/separation = 20
+
+[node name="TeamBlue" type="Button" parent="Content/HBoxContainer" unique_id=1946612342]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+theme = ExtResource("1_irtk0")
+text = "Team Blue"
+
+[node name="TeamRed" type="Button" parent="Content/HBoxContainer" unique_id=1264764665]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+theme = ExtResource("2_srwfa")
+text = "Team Red"
+
+[node name="Status" type="Label" parent="Content" unique_id=82347462]
+layout_mode = 2
+text = "Waiting..."

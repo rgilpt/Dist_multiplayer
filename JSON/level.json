@@ -1,0 +1,76 @@
+{
+	"tile_type_map": {
+		"floor": [0, 0],
+		"wall": [32, 0],
+		"wall_inner": [64, 0],
+		"floor_outer": [96, 0],
+		"floor_corner": [128, 0],
+		"ammo_pickup": [0, 32],
+		"flag": [32, 32],
+		"wall_upper_floor": [64, 32],
+		"corner_top_left": [96, 32],
+		"corner_top_right": [128, 32]
+	},
+	"rooms": [
+		{
+			"name": "P1_HQ",
+			"position": {"x": 100, "y": 100},
+			"size": {"width": 256, "height": 128},
+			"wall_thickness": 32,
+			"flags": [
+				{"position": {"x": 350, "y": 100}}
+			],
+			"ammo_pickups": [
+				{"position": {"x": 148, "y": 148}},
+				{"position": {"x": 180, "y": 180}}
+			],
+			"doors": [
+				{"position": {"x": 228, "y": 148}, "direction": "right", "is_open": true},
+				{"position": {"x": 100, "y": 196}, "direction": "down", "is_open": true}
+			]
+		},
+		{
+			"name": "P2_HQ",
+			"position": {"x": 416, "y": 100},
+			"size": {"width": 128, "height": 128},
+			"wall_thickness": 32,
+			"flags": [],
+			"ammo_pickups": [
+				{"position": {"x": 448, "y": 228}},
+				{"position": {"x": 480, "y": 244}}
+			],
+			"doors": [
+				{"position": {"x": 416, "y": 148}, "direction": "left", "is_open": true},
+				{"position": {"x": 512, "y": 196}, "direction": "down", "is_open": true}
+			]
+		},
+		{
+			"name": "middle_area",
+			"position": {"x": 228, "y": 228},
+			"size": {"width": 192, "height": 128},
+			"wall_thickness": 32,
+			"flags": [],
+			"ammo_pickups": [
+				{"position": {"x": 262, "y": 262}},
+				{"position": {"x": 394, "y": 296}}
+			],
+			"doors": []
+		}
+	],
+	"corridors": [
+		{
+			"start_room": "P2_HQ",
+			"end_room": "middle_area",
+			"width": 32
+		},
+		{
+			"start_room": "middle_area",
+			"end_room": "P1_HQ",
+			"width": 32
+		}
+	],
+	"tilesets": {
+		"tile_type_mapping": {},
+		"tiles": {}
+	}
+}

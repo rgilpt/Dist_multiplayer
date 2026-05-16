@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://m7a8jan0s1c2"]
+
+[ext_resource type="Script" uid="uid://cck0bwp4qt6q6" path="res://Scripts/Main.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://cmap1234567" path="res://Scenes/Map.tscn" id="2_idj7w"]
+[ext_resource type="PackedScene" uid="uid://d4bp2vje74nh8" path="res://Scenes/team_select.tscn" id="2_rgh2o"]
+[ext_resource type="Script" uid="uid://yp7l3qm37olp" path="res://Scripts/NetworkManager.gd" id="3_kln2b"]
+[ext_resource type="Script" uid="uid://d0bpxatxxbe7u" path="res://Scenes/team_manager.gd" id="3_pbw6q"]
+
+[node name="Main" type="Node2D" unique_id=1236021089]
+script = ExtResource("1")
+
+[node name="TeamSelect" parent="." unique_id=1362580167 node_paths=PackedStringArray("team_manager", "network_manager") instance=ExtResource("2_rgh2o")]
+team_manager = NodePath("../TeamManager")
+network_manager = NodePath("../NetworkManager")
+
+[node name="TeamManager" type="Node" parent="." unique_id=93492434]
+script = ExtResource("3_pbw6q")
+
+[node name="NetworkManager" type="Node" parent="." unique_id=1894153126]
+script = ExtResource("3_kln2b")
+
+[node name="Map" parent="." unique_id=105044949 instance=ExtResource("2_idj7w")]
+scale = Vector2(5, 5)

@@ -1,0 +1,168 @@
+Here is a comprehensive Game Design Document (GDD) tailored for your A.S.A. STEAM after-school activity. This document is structured to guide both the instructor and the students (ages 12–15), focusing on educational outcomes while delivering the specific gameplay and bug-fixing requirements you requested.
+
+---
+
+# Game Design Document: Bug Bash – Capture the Code
+
+**Project Name:** Bug Bash: Capture the Code  
+**Engine:** Godot 4.3+ (Recommended for stable `MultiplayerSpawner`)  
+**Target Audience:** A.S.A. STEAM Students (Ages 12–15)  
+**Game Mode:** Multiplayer Local/Networked Capture the Flag  
+**Duration:** 6–8 Sessions (After-school block)  
+**Genre:** 2D PVP Arena Shooter / Debugging Challenge  
+
+---
+
+## 1. STEAM Learning Objectives
+
+This project integrates STEAM disciplines into the game development lifecycle:
+
+*   **Science:** Understanding collision layers, physics layers, and how `Area2D` vs. `CharacterBody2D` interacts with the physics engine.
+*   **Technology:** Proficiency in Godot 4 workflow, GDScript syntax, signals, and `MultiplayerSpawner` for replication.
+*   **Engineering:** The debugging process (Hypothesis → Test → Fix), modular code design (Player vs. Weapon vs. Ammo scripts), and state management.
+*   **Arts:** Level design of the "House" environment, sprite selection/creation, UI feedback for ammo and flags, and visual clarity for PvP.
+*   **Mathematics:** Vector mathematics for movement (`velocity`, `move_and_slide()`), coordinate systems, timer logic, and boolean logic for flag capture.
+
+---
+
+## 2. Game Concept & Mechanics
+
+### 2.1 Core Loop
+1.  **Spawn:** Players wait 5 seconds in a safe zone.
+2.  **Scout & Fight:** Players navigate the House, manage their ammo, and locate the enemy flag.
+3.  **Capture:** Player picks up the flag and returns to their "Home Base" zone.
+4.  **Score:** Flag delivery triggers a score; enemy respawns.
+5.  **End:** Game ends when a time limit is reached or a score cap is met.
+
+### 2.2 Environment
+*   **Theme:** "The Glitch House." A 2D top-down house floorplan.
+*   **Assets:** Walls (Collision), Floors, Furniture (obstacles), Home Zones (colored circles), Enemy Zones.
+*   **Walls:** Must have `CollisionPolygon2D` or `TileMapLayer` with collision enabled.
+
+### 2.3 Player Specs
+*   **Movement:** 8-directional movement.
+*   **Weapon:** Basic Weapon.
+    *   *Base Ammo:* 6 rounds.
+    *   *Reload/Respawn Ammo:* Restores to 6.
+*   **Ammo Pickups:** Scattered ammo boxes.
+    *   *Effect:* Adds ammo to current weapon.
+*   **Capture the Flag:**
+    *   Player collides with Flag → Flag disappears from map.
+    *   Player returns to colored zone → Point scored → Flag respawns.
+
+---
+
+## 3. The "Bug Library" (Educational Challenges)
+
+Students will receive a "Broken Project" version of the game or are tasked with implementing features that *contain* these known bugs. They must identify and fix them.
+
+| Bug ID | Category | Description of the Bug | Student Learning Outcome |
+| :--- | :--- | :--- | :--- |
+| **BUG-01** | **Movement** | Player moves at half speed or slides uncontrollably. | *Fix:* `move_and_slide()` velocity calculation error or `linear_interpolation` misused. Teaches vector normalization and physics update steps. |
+| **BUG-02** | **Logic/Value** | Ammo pickup gives `2` ammo instead of `6`. | *Fix:* Typo in variable assignment. `ammo += 2` should be `ammo = 6` or `ammo += 6`. Teaches variable scope and arithmetic logic. |
+| **BUG-03** | **Node Config** | Ammo pickups do not trigger. Player passes through. | *Fix:* `Area2D` has no child `CollisionShape2D` or the Shape Resource is empty/null. Teaches Node hierarchy and Collision detection requirements. |
+| **BUG-04** | **Physics** | Player clips through walls. | *Fix:* `CollisionLayer` and `CollisionMask` mismatch between Player and Walls. Teaches Layer/Mask architecture. |
+| **BUG-05** | **Timer** | Spawn timer shows 0 or does not count down. | *Fix:* `Timer` process mode is wrong, or `wait_time` is set to 0, or `start()` is not called. Teaches Timer nodes and process modes. |
+| **BUG-06** | **Multiplayer** | Players see ghosts or ammo doesn't sync. | *Fix:* Missing `_multiplayer.is_server()` checks or using `rpc()` incorrectly on ammo. Teaches Client/Server authority. |
+
+---
+
+## 4. Godot 4 Implementation Notes
+
+### 4.1 Project Structure
+```text
+res://
+├── Scenes/
+│   ├── Main.tscn (Level & Spawner)
+│   ├── Player.tscn (CharacterBody2D)
+│   ├── Weapon.tscn (Node2D with Sprite & Logic)
+│   ├── AmmoPickup.tscn (Area2D)
+│   ├── Flag.tscn (StaticBody2D)
+│   └── UI.tscn (CanvasLayer)
+├── Scripts/
+│   ├── Player.gd
+│   ├── Weapon.gd
+│   ├── GameManager.gd
+│   └── NetworkManager.gd
+└── Assets/
+```
+
+### 4.2 Key Technical Solutions
+*   **Multiplayer:** Use `MultiplayerSpawner` for the House and Flags. Use `MultiplayerSynchronizer` on Player `CharacterBody2D` and `Weapon` variables to sync Ammo counts without manual RPCs.
+*   **Ammo Pickup Signal:**
+    ```gdscript
+    # AmmoPickup.gd
+    func _on_area_entered(area):
+        if area.is_in_group("player"):
+            # Fix BUG-02 here if testing students
+            area.heal_ammo(6) 
+            queue_free()
+    ```
+*   **Movement Fix:**
+    ```gdscript
+    # Player.gd (CharacterBody2D)
+    func get_input():
+        var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+        velocity = input_dir * speed
+    ```
+*   **Collision Shape Fix:** Ensure all `Area2D` nodes have a `CollisionShape2D` child with a `RectangleShape2D` or `CapsuleShape2D` assigned. **Empty shapes cause silent failures.**
+
+---
+
+## 5. Activity Workflow (After-School Plan)
+
+### Phase 1: Setup & Environment (STEAM: Engineering/Arts)
+*   Create the House scene using `TileMapLayer`.
+*   Implement `CharacterBody2D` movement.
+*   *Challenge:* Introduce **BUG-01** (Movement speed/physics issue) intentionally.
+
+### Phase 2: Core Mechanics (STEAM: Math/Science)
+*   Implement Weapon script and Ammo logic.
+*   Add Ammo Pickup `Area2D` with signal connections.
+*   *Challenge:* Introduce **BUG-02** (Ammo value typo) and **BUG-03** (Missing CollisionShape).
+
+### Phase 3: Game Logic (STEAM: Technology)
+*   Implement Flag logic and Zone collision.
+*   Add `Timer` for spawning.
+*   *Challenge:* Introduce **BUG-05** (Spawn timer not working).
+
+### Phase 4: Multiplayer Integration (STEAM: Technology)
+*   Convert single-player to multiplayer using Godot 4 `MultiplayerSpawner`.
+*   Setup `MultiplayerSynchronizer` for Ammo and Position.
+*   *Challenge:* Introduce **BUG-06** (Desync issues due to missing RPC/Sync config).
+
+### Phase 5: Testing & Play (STEAM: All)
+*   Students swap projects to find bugs in each other's games.
+*   Final "Bug Bash" tournament.
+
+---
+
+## 6. Student Deliverables & Assessment
+
+### Rubric
+| Criteria | Emerging | Developing | Proficient | Exemplary |
+| :--- | :--- | :--- | :--- | :--- |
+| **Debugging** | Could not identify bugs; code broken. | Found some bugs but needed help fixing. | Found and fixed all assigned bugs independently. | Fixed bugs and optimized code beyond requirements. |
+| **Godot Skills** | Nodes used incorrectly; scene tree messy. | Scene tree functional but inefficient. | Proper node hierarchy; uses signals correctly. | Uses `MultiplayerSpawner`, clean script structure, comments. |
+| **Gameplay** | Game crashes or logic fails. | Game works but has minor glitches. | CTF mechanics work; Multiplayer stable. | Polish: UI, sound, balanced multiplayer lag handling. |
+| **Collaboration** | Worked alone; no communication. | Shared tasks but conflict occurred. | Clear division of labor; version control used. | Mentored peers; documented changes; Git flow used. |
+
+### Teacher Tips for Godot 4 Multiplayer with Students
+1.  **Use Godot 4.3+:** The new `MultiplayerSpawner` and `MultiplayerSynchronizer` are much more forgiving for students than the old RPC system.
+2.  **Physics Layers:** Remind students that `CharacterBody2D` uses **Collision Layers** for moving, while `Area2D` uses **Monitor/Mask** for sensing. This is a common confusion point.
+3.  **Ammo Sync:** Have students sync the `ammo` variable via `MultiplayerSynchronizer`. This prevents "laggy ammo" where the server says 6 but the client thinks 0.
+
+---
+
+## 7. Appendix: "Cheat Sheet" for Students
+
+**Common Godot 4 Error Checks:**
+*   **Player not moving?** Check `move_and_slide()` is in `_physics_process`, not `_process`.
+*   **Area2D not detecting?** Check `Is Monitor` is ON and `CollisionShape2D` has a valid shape.
+*   **Ammo = 2?** Check your math. Did you type `+= 2` or `= 2`?
+*   **Script errors?** Check the `Debugger` window at the bottom of Godot. Look for red lines.
+*   **Multiplayer?** Did you call `MultiplayerSpawner.spawn()` on the server? Only the server can spawn networked nodes.
+
+---
+
+This GDD provides the technical structure for your Godot 4 project while framing the development as an engaging educational challenge suitable for the A.S.A. STEAM curriculum. It ensures students encounter specific, educational bugs that teach core game development concepts while working toward a multiplayer Capture the Flag end goal.
