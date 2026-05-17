@@ -1,7 +1,51 @@
 [gd_scene format=3 uid="uid://cmap1234567"]
 
-[ext_resource type="Script" uid="uid://ddewc22xjlbcp" path="res://Scripts/LevelBuilder.gd" id="1"]
+[ext_resource type="Script" uid="uid://dswei434fwwa7" path="res://Scripts/LevelBuilder_claude.gd" id="1_7yn8b"]
+[ext_resource type="Texture2D" uid="uid://ckuybwkbj1vd" path="res://Assets/tilesets/GlitchHouse.png" id="2_7yn8b"]
 
-[node name="Map" type="TileMapLayer" unique_id=105044949]
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_etk83"]
+texture = ExtResource("2_7yn8b")
+0:0/0 = 0
+1:0/0 = 0
+2:0/0 = 0
+3:0/0 = 0
+4:0/0 = 0
+5:0/0 = 0
+6:0/0 = 0
+7:0/0 = 0
+0:1/0 = 0
+1:1/0 = 0
+2:1/0 = 0
+3:1/0 = 0
+4:1/0 = 0
+5:1/0 = 0
+6:1/0 = 0
+7:1/0 = 0
+0:2/0 = 0
+1:2/0 = 0
+2:2/0 = 0
+3:2/0 = 0
+4:2/0 = 0
+5:2/0 = 0
+6:2/0 = 0
+7:2/0 = 0
+0:3/0 = 0
+1:3/0 = 0
+2:3/0 = 0
+3:3/0 = 0
+4:3/0 = 0
+5:3/0 = 0
+6:3/0 = 0
+7:3/0 = 0
+
+[sub_resource type="TileSet" id="TileSet_qumfl"]
+sources/0 = SubResource("TileSetAtlasSource_etk83")
+
+[node name="LevelBuider" type="Node" unique_id=1889000852 node_paths=PackedStringArray("tile_map")]
+script = ExtResource("1_7yn8b")
+tile_map = NodePath("Map")
+
+[node name="Map" type="TileMapLayer" parent="." unique_id=105044949]
+z_index = -1
 texture_filter = 1
-script = ExtResource("1")
+tile_set = SubResource("TileSet_qumfl")

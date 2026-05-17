@@ -36,6 +36,7 @@ signal connected_as_team(assigned_team: int)
 
 var _initialized: bool = false
 var player_scene = preload("res://Scenes/Player.tscn")
+@onready var players: Node2D = $"../Players"
 
 func _ready():
 	if _initialized:
@@ -46,6 +47,8 @@ func _ready():
 	
 	#args.append("--client")
 	#args.append("127.0.0.1")
+	args.append("--server")
+	
 	 
 
 
@@ -93,7 +96,7 @@ func _on_connected_to_server() -> void:
 	print("Connected! My ID: ", multiplayer.get_unique_id())
 	call_deferred("_spawn_local_player")
 
-func _spawn_local_player(my_id=null) -> void:
+func _spawn_local_player(my_id=null, spawn_pos=Vector2(250,250)) -> void:
 	if my_id == null:
 		my_id = multiplayer.get_unique_id()
 	# Guard: don't spawn if already exists
@@ -102,9 +105,11 @@ func _spawn_local_player(my_id=null) -> void:
 		return
 	var player = player_scene.instantiate()
 	player.name = str(my_id)
+	player.position = spawn_pos
 	player.is_player_one = (my_id == 1)
 	player.is_local_player = true
-	add_child(player)
+	
+	players.add_child(player)
 	player.set_multiplayer_authority(my_id)
 	print("Spawned local player with id: ", my_id)
 	rpc("spawn_remote_player", my_id)

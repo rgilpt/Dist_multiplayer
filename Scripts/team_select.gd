@@ -11,8 +11,8 @@ func _ready():
 	bg.color = Color(0,0,0,0)
 	update_ui()
 	# Connect to NetworkManager signals
-	network_manager.team_data_updated.connect(_on_team_data_updated)
-	network_manager.game_started.connect(_on_game_started)
+	#network_manager.team_data_updated.connect(_on_team_data_updated)
+	#network_manager.game_started.connect(_on_game_started)
 func _on_team_data_updated(team_a: int, team_b: int, your_team: int):
 	team_counts = [team_a, team_b]
 	my_team = your_team

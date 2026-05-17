@@ -1,76 +1,102 @@
 {
-	"tile_type_map": {
-		"floor": [0, 0],
-		"wall": [32, 0],
-		"wall_inner": [64, 0],
-		"floor_outer": [96, 0],
-		"floor_corner": [128, 0],
-		"ammo_pickup": [0, 32],
-		"flag": [32, 32],
-		"wall_upper_floor": [64, 32],
-		"corner_top_left": [96, 32],
-		"corner_top_right": [128, 32]
-	},
 	"rooms": [
 		{
-			"name": "P1_HQ",
-			"position": {"x": 100, "y": 100},
-			"size": {"width": 256, "height": 128},
-			"wall_thickness": 32,
-			"flags": [
-				{"position": {"x": 350, "y": 100}}
-			],
-			"ammo_pickups": [
-				{"position": {"x": 148, "y": 148}},
-				{"position": {"x": 180, "y": 180}}
-			],
-			"doors": [
-				{"position": {"x": 228, "y": 148}, "direction": "right", "is_open": true},
-				{"position": {"x": 100, "y": 196}, "direction": "down", "is_open": true}
-			]
+			"name": "hq1",
+			"position": {"x": 128, "y": 128},
+			"size": {"width": 512, "height": 512},
+			"wall_thickness": 32
 		},
 		{
-			"name": "P2_HQ",
-			"position": {"x": 416, "y": 100},
-			"size": {"width": 128, "height": 128},
-			"wall_thickness": 32,
-			"flags": [],
-			"ammo_pickups": [
-				{"position": {"x": 448, "y": 228}},
-				{"position": {"x": 480, "y": 244}}
-			],
-			"doors": [
-				{"position": {"x": 416, "y": 148}, "direction": "left", "is_open": true},
-				{"position": {"x": 512, "y": 196}, "direction": "down", "is_open": true}
-			]
+			"name": "hq2",
+			"position": {"x": 4480, "y": 4480},
+			"size": {"width": 512, "height": 512},
+			"wall_thickness": 32
 		},
 		{
-			"name": "middle_area",
-			"position": {"x": 228, "y": 228},
-			"size": {"width": 192, "height": 128},
-			"wall_thickness": 32,
-			"flags": [],
-			"ammo_pickups": [
-				{"position": {"x": 262, "y": 262}},
-				{"position": {"x": 394, "y": 296}}
-			],
-			"doors": []
+			"name": "room_top_mid",
+			"position": {"x": 1792, "y": 128},
+			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
+		},
+		{
+			"name": "room_top_right",
+			"position": {"x": 3392, "y": 128},
+			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
+		},
+		{
+			"name": "room_left_upper",
+			"position": {"x": 128, "y": 1280},
+			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
+		},
+		{
+			"name": "room_left_lower",
+			"position": {"x": 128, "y": 2880},
+			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
+		},
+		{
+			"name": "room_center_upper",
+			"position": {"x": 1792, "y": 1280},
+			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
+		},
+		{
+			"name": "room_center_mid",
+			"position": {"x": 1792, "y": 2560},
+			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
+		},
+		{
+			"name": "room_center_lower",
+			"position": {"x": 1792, "y": 3840},
+			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
+		},
+		{
+			"name": "room_right_upper",
+			"position": {"x": 3392, "y": 1280},
+			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
+		},
+		{
+			"name": "room_right_lower",
+			"position": {"x": 3392, "y": 2880},
+			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
+		},
+		{
+			"name": "room_bottom_mid",
+			"position": {"x": 2240, "y": 4480},
+			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
+		},
+		{
+			"name": "room_bottom_left",
+			"position": {"x": 832, "y": 4480},
+			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
 		}
 	],
 	"corridors": [
-		{
-			"start_room": "P2_HQ",
-			"end_room": "middle_area",
-			"width": 32
-		},
-		{
-			"start_room": "middle_area",
-			"end_room": "P1_HQ",
-			"width": 32
-		}
-	],
-	"tilesets": {
-		"tile_type_mapping": {},
-		"tiles": {}
-	}
+		{"start_room": "hq1", "end_room": "room_top_mid", "width": 128},
+		{"start_room": "room_top_mid", "end_room": "room_top_right", "width": 128},
+		{"start_room": "room_top_right", "end_room": "room_right_upper", "width": 128},
+		{"start_room": "room_right_upper", "end_room": "room_right_lower", "width": 128},
+		{"start_room": "room_right_lower", "end_room": "hq2", "width": 128},
+		{"start_room": "hq1", "end_room": "room_left_upper", "width": 128},
+		{"start_room": "room_left_upper", "end_room": "room_left_lower", "width": 128},
+		{"start_room": "room_left_lower", "end_room": "room_bottom_left", "width": 128},
+		{"start_room": "room_bottom_left", "end_room": "room_bottom_mid", "width": 128},
+		{"start_room": "room_bottom_mid", "end_room": "hq2", "width": 128},
+		{"start_room": "room_top_mid", "end_room": "room_center_upper", "width": 128},
+		{"start_room": "room_center_upper", "end_room": "room_center_mid", "width": 128},
+		{"start_room": "room_center_mid", "end_room": "room_center_lower", "width": 128},
+		{"start_room": "room_center_lower", "end_room": "room_bottom_mid", "width": 128},
+		{"start_room": "room_center_upper", "end_room": "room_right_upper", "width": 128},
+		{"start_room": "room_center_mid", "end_room": "room_right_lower", "width": 128},
+		{"start_room": "room_left_upper", "end_room": "room_center_upper", "width": 128},
+		{"start_room": "room_left_lower", "end_room": "room_center_mid", "width": 128}
+	]
 }

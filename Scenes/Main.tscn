@@ -9,15 +9,16 @@
 [node name="Main" type="Node2D" unique_id=1236021089]
 script = ExtResource("1")
 
+[node name="Map" parent="." unique_id=105044949 instance=ExtResource("2_idj7w")]
+
+[node name="Players" type="Node2D" parent="." unique_id=1868376347]
+
+[node name="NetworkManager" type="Node" parent="." unique_id=1894153126]
+script = ExtResource("3_kln2b")
+
 [node name="TeamSelect" parent="." unique_id=1362580167 node_paths=PackedStringArray("team_manager", "network_manager") instance=ExtResource("2_rgh2o")]
 team_manager = NodePath("../TeamManager")
 network_manager = NodePath("../NetworkManager")
 
 [node name="TeamManager" type="Node" parent="." unique_id=93492434]
 script = ExtResource("3_pbw6q")
-
-[node name="NetworkManager" type="Node" parent="." unique_id=1894153126]
-script = ExtResource("3_kln2b")
-
-[node name="Map" parent="." unique_id=105044949 instance=ExtResource("2_idj7w")]
-scale = Vector2(5, 5)
