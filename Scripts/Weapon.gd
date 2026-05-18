@@ -3,6 +3,11 @@ extends Node2D
 @export var speed : float = 500.0
 var shooter : String = ""
 var velocity : Vector2 = Vector2.ZERO
+var _mouse_direction : Vector2 = Vector2.RIGHT
+
+@rpc("authority", "call_remote", "reliable")
+func set_mouse_direction(dir: Vector2) -> void:
+	_mouse_direction = dir
 
 func _ready():
 	# Set bullet size based on shooter

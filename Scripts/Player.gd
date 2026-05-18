@@ -12,6 +12,7 @@ extends CharacterBody2D
 @onready var flag_indicator : ColorRect = $FlagIndicator
 @onready var p_1_zone: ColorRect = $HomeZoneArea/P1Zone
 @onready var p_2_zone: ColorRect = $HomeZoneArea/P2Zone
+@onready var camera_2d: Camera2D = $Camera2D
 
 var is_player_one : bool = false
 var is_local_player: bool = false
@@ -19,12 +20,15 @@ var ammo : int = 6
 var score : int = 0
 var has_flag : bool = false
 var carry_flag_texture : Texture2D
-@onready var camera_2d: Camera2D = $Camera2D
+var _ready_to_sync: bool = false
 
 func _ready():
 	add_to_group("player")
-	print(is_multiplayer_authority())
+
+	# By the time player is spawned, game has already started
+	# so enable camera immediately for local player
 	camera_2d.enabled = is_local_player
+	_ready_to_sync = false
 
 	if is_player_one:
 		sprite.modulate = Color(0.3, 0.7, 1.0)
@@ -36,30 +40,34 @@ func _ready():
 		p_2_zone.visible = true
 
 	weapon_holder.visible = false
-
 	flag_area.body_entered.connect(_on_flag_area_body_entered)
 	home_zone_area.body_entered.connect(_on_home_zone_entered)
 
+	if is_local_player:
+		await get_tree().create_timer(0.5).timeout
+		_ready_to_sync = true
+
+
+
 func _physics_process(_delta):
-	# Local player: read input and broadcast position
-	if is_multiplayer_authority():
-		var input_dir := Vector2.ZERO
-		input_dir.x = Input.get_action_strength("p1_right") - Input.get_action_strength("p1_left")
-		input_dir.y = Input.get_action_strength("p1_down") - Input.get_action_strength("p1_up")
+	if not is_local_player:
+		return
 
-		if input_dir != Vector2.ZERO:
-			input_dir = input_dir.normalized()
+	var input_dir := Vector2.ZERO
+	input_dir.x = Input.get_action_strength("p1_right") - Input.get_action_strength("p1_left")
+	input_dir.y = Input.get_action_strength("p1_down") - Input.get_action_strength("p1_up")
 
-		velocity = input_dir * speed
-		move_and_slide()
+	if input_dir != Vector2.ZERO:
+		input_dir = input_dir.normalized()
 
-		if input_dir.x != 0:
-			sprite.flip_h = input_dir.x < 0
+	velocity = input_dir * speed
+	move_and_slide()
 
+	if input_dir.x != 0:
+		sprite.flip_h = input_dir.x < 0
+
+	if _ready_to_sync:
 		rpc("sync_position", global_position, sprite.flip_h)
-	# Remote player: just smoothly follow received position
-	else:
-		pass  # position is set directly by sync_position RPC
 
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func sync_position(pos: Vector2, flipped: bool) -> void:
@@ -67,7 +75,7 @@ func sync_position(pos: Vector2, flipped: bool) -> void:
 	sprite.flip_h = flipped
 
 func _input(event):
-	if not is_multiplayer_authority():
+	if not is_local_player:
 		return
 	if event.is_action_pressed("shoot"):
 		fire()
@@ -81,7 +89,12 @@ func fire():
 
 	var bullet_scene : PackedScene = preload("res://Scenes/Weapon.tscn")
 	var bullet : Node2D = bullet_scene.instantiate()
-	bullet.global_position = global_position + Vector2(10, 10)
+
+	var mouse_pos : Vector2 = get_global_mouse_position()
+	var direction : Vector2 = (mouse_pos - global_position).normalized()
+
+	bullet.global_position = global_position
+	bullet.set_mouse_direction(direction)
 	get_tree().root.add_child(bullet)
 
 	if is_player_one:
@@ -95,9 +108,6 @@ func update_ammo_ui():
 	if ammo_ui:
 		ammo_ui.text = "Ammo: " + str(ammo)
 
-
-
-
 func _on_flag_area_body_entered(body):
 	if body.is_in_group("flag") and not has_flag:
 		rpc_request_flag()
@@ -108,7 +118,7 @@ func rpc_request_flag():
 		return
 	has_flag = true
 	flag_indicator.visible = true
-	get_node("/root/NetworkManager").remove_flag()
+	get_node("/root/Main/NetworkManager").remove_flag()
 	rpc("rpc_set_flag", true)
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -122,7 +132,7 @@ func _on_home_zone_entered(body):
 		score_ui.text = "Score: " + str(score)
 		rpc("rpc_sync_score", score)
 		rpc("rpc_release_flag")
-		get_node("/root/NetworkManager").respawn_flag()
+		get_node("/root/Main/NetworkManager").respawn_flag()
 
 @rpc("any_peer", "call_remote", "reliable")
 func rpc_release_flag():

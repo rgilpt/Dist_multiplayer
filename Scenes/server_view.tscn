@@ -1,0 +1,51 @@
+[gd_scene format=3 uid="uid://s00sijq17h30"]
+
+[ext_resource type="Script" uid="uid://b0ol10ft3qvpw" path="res://Scripts/server_view.gd" id="1_o1jxb"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_v1njg"]
+bg_color = Color(0.6, 0.6, 0.6, 0.7058824)
+
+[node name="ServerView" type="Control" unique_id=1126660070]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_o1jxb")
+
+[node name="Panel" type="Panel" parent="." unique_id=508589910]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_v1njg")
+
+[node name="VBox" type="VBoxContainer" parent="Panel" unique_id=614429248]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Status" type="Label" parent="Panel/VBox" unique_id=785422542]
+layout_mode = 2
+
+[node name="Players" type="Label" parent="Panel/VBox" unique_id=948350848]
+layout_mode = 2
+
+[node name="Teams" type="Label" parent="Panel/VBox" unique_id=1987950709]
+layout_mode = 2
+
+[node name="Scores" type="Label" parent="Panel/VBox" unique_id=1834880931]
+layout_mode = 2
+
+[node name="Timer" type="Label" parent="Panel/VBox" unique_id=895137843]
+layout_mode = 2
+
+[node name="StartBtn" type="Button" parent="Panel/VBox" unique_id=301909543]
+layout_mode = 2
+text = "Force Start"

@@ -41,7 +41,7 @@ texture = ExtResource("2_7yn8b")
 [sub_resource type="TileSet" id="TileSet_qumfl"]
 sources/0 = SubResource("TileSetAtlasSource_etk83")
 
-[node name="LevelBuider" type="Node" unique_id=1889000852 node_paths=PackedStringArray("tile_map")]
+[node name="LevelBuilder" type="Node" unique_id=1889000852 node_paths=PackedStringArray("tile_map")]
 script = ExtResource("1_7yn8b")
 tile_map = NodePath("Map")
 

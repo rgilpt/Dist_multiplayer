@@ -7,96 +7,106 @@
 			"wall_thickness": 32
 		},
 		{
-			"name": "hq2",
-			"position": {"x": 4480, "y": 4480},
-			"size": {"width": 512, "height": 512},
-			"wall_thickness": 32
-		},
-		{
 			"name": "room_top_mid",
-			"position": {"x": 1792, "y": 128},
+			"position": {"x": 1528, "y": 128},
 			"size": {"width": 448, "height": 448},
 			"wall_thickness": 32
 		},
 		{
 			"name": "room_top_right",
-			"position": {"x": 3392, "y": 128},
+			"position": {"x": 2928, "y": 128},
 			"size": {"width": 448, "height": 448},
 			"wall_thickness": 32
 		},
 		{
 			"name": "room_left_upper",
-			"position": {"x": 128, "y": 1280},
-			"size": {"width": 448, "height": 448},
-			"wall_thickness": 32
-		},
-		{
-			"name": "room_left_lower",
-			"position": {"x": 128, "y": 2880},
+			"position": {"x": 128, "y": 1328},
 			"size": {"width": 448, "height": 448},
 			"wall_thickness": 32
 		},
 		{
 			"name": "room_center_upper",
-			"position": {"x": 1792, "y": 1280},
-			"size": {"width": 448, "height": 448},
-			"wall_thickness": 32
-		},
-		{
-			"name": "room_center_mid",
-			"position": {"x": 1792, "y": 2560},
-			"size": {"width": 448, "height": 448},
-			"wall_thickness": 32
-		},
-		{
-			"name": "room_center_lower",
-			"position": {"x": 1792, "y": 3840},
+			"position": {"x": 1528, "y": 1328},
 			"size": {"width": 448, "height": 448},
 			"wall_thickness": 32
 		},
 		{
 			"name": "room_right_upper",
-			"position": {"x": 3392, "y": 1280},
+			"position": {"x": 2928, "y": 1328},
+			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
+		},
+		{
+			"name": "room_left_lower",
+			"position": {"x": 128, "y": 2528},
+			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
+		},
+		{
+			"name": "room_center_mid",
+			"position": {"x": 1528, "y": 2528},
 			"size": {"width": 448, "height": 448},
 			"wall_thickness": 32
 		},
 		{
 			"name": "room_right_lower",
-			"position": {"x": 3392, "y": 2880},
-			"size": {"width": 448, "height": 448},
-			"wall_thickness": 32
-		},
-		{
-			"name": "room_bottom_mid",
-			"position": {"x": 2240, "y": 4480},
+			"position": {"x": 2928, "y": 2528},
 			"size": {"width": 448, "height": 448},
 			"wall_thickness": 32
 		},
 		{
 			"name": "room_bottom_left",
-			"position": {"x": 832, "y": 4480},
+			"position": {"x": 128, "y": 3728},
 			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
+		},
+		{
+			"name": "room_center_lower",
+			"position": {"x": 1528, "y": 3728},
+			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
+		},
+		{
+			"name": "room_bottom_mid",
+			"position": {"x": 1528, "y": 4928},
+			"size": {"width": 448, "height": 448},
+			"wall_thickness": 32
+		},
+		{
+			"name": "hq2",
+			"position": {"x": 2928, "y": 4928},
+			"size": {"width": 512, "height": 512},
 			"wall_thickness": 32
 		}
 	],
 	"corridors": [
-		{"start_room": "hq1", "end_room": "room_top_mid", "width": 128},
-		{"start_room": "room_top_mid", "end_room": "room_top_right", "width": 128},
-		{"start_room": "room_top_right", "end_room": "room_right_upper", "width": 128},
-		{"start_room": "room_right_upper", "end_room": "room_right_lower", "width": 128},
-		{"start_room": "room_right_lower", "end_room": "hq2", "width": 128},
-		{"start_room": "hq1", "end_room": "room_left_upper", "width": 128},
-		{"start_room": "room_left_upper", "end_room": "room_left_lower", "width": 128},
-		{"start_room": "room_left_lower", "end_room": "room_bottom_left", "width": 128},
-		{"start_room": "room_bottom_left", "end_room": "room_bottom_mid", "width": 128},
-		{"start_room": "room_bottom_mid", "end_room": "hq2", "width": 128},
-		{"start_room": "room_top_mid", "end_room": "room_center_upper", "width": 128},
-		{"start_room": "room_center_upper", "end_room": "room_center_mid", "width": 128},
-		{"start_room": "room_center_mid", "end_room": "room_center_lower", "width": 128},
-		{"start_room": "room_center_lower", "end_room": "room_bottom_mid", "width": 128},
-		{"start_room": "room_center_upper", "end_room": "room_right_upper", "width": 128},
-		{"start_room": "room_center_mid", "end_room": "room_right_lower", "width": 128},
-		{"start_room": "room_left_upper", "end_room": "room_center_upper", "width": 128},
-		{"start_room": "room_left_lower", "end_room": "room_center_mid", "width": 128}
-	]
+		{"start_room": "hq1",              "end_room": "room_top_mid",     "start_side": "right",  "end_side": "left",   "width": 128},
+		{"start_room": "room_top_mid",     "end_room": "room_top_right",   "start_side": "right",  "end_side": "left",   "width": 128},
+		{"start_room": "room_top_right",   "end_room": "room_right_upper", "start_side": "bottom", "end_side": "top",    "width": 128},
+		{"start_room": "room_right_upper", "end_room": "room_right_lower", "start_side": "bottom", "end_side": "top",    "width": 128},
+		{"start_room": "room_right_lower", "end_room": "hq2",              "start_side": "bottom", "end_side": "top",    "width": 128},
+		{"start_room": "hq1",              "end_room": "room_left_upper",  "start_side": "bottom", "end_side": "top",    "width": 128},
+		{"start_room": "room_left_upper",  "end_room": "room_left_lower",  "start_side": "bottom", "end_side": "top",    "width": 128},
+		{"start_room": "room_left_lower",  "end_room": "room_bottom_left", "start_side": "bottom", "end_side": "top",    "width": 128},
+		{"start_room": "room_bottom_left", "end_room": "room_bottom_mid",  "start_side": "right",  "end_side": "left",   "width": 128},
+		{"start_room": "room_bottom_mid",  "end_room": "hq2",              "start_side": "right",  "end_side": "left",   "width": 128},
+		{"start_room": "room_top_mid",     "end_room": "room_center_upper","start_side": "bottom", "end_side": "top",    "width": 128},
+		{"start_room": "room_center_upper","end_room": "room_center_mid",  "start_side": "bottom", "end_side": "top",    "width": 128},
+		{"start_room": "room_center_mid",  "end_room": "room_center_lower","start_side": "bottom", "end_side": "top",    "width": 128},
+		{"start_room": "room_center_lower","end_room": "room_bottom_mid",  "start_side": "bottom", "end_side": "top",    "width": 128},
+		{"start_room": "room_left_upper",  "end_room": "room_center_upper","start_side": "right",  "end_side": "left",   "width": 128},
+		{"start_room": "room_left_lower",  "end_room": "room_center_mid",  "start_side": "right",  "end_side": "left",   "width": 128},
+		{"start_room": "room_center_upper","end_room": "room_right_upper", "start_side": "right",  "end_side": "left",   "width": 128},
+		{"start_room": "room_center_mid",  "end_room": "room_right_lower", "start_side": "right",  "end_side": "left",   "width": 128}
+	],
+	"spawns": {
+		"blue": [
+			{"x": 192, "y": 384},
+			{"x": 256, "y": 384}
+		],
+		"red": [
+			{"x": 2992, "y": 5184},
+			{"x": 3056, "y": 5184}
+		]
+}
 }

@@ -1,3 +1,7 @@
+#args.append("--client")
+	#args.append("127.0.0.1")
+	#args.append("--server")
+
 {
 	"rooms": [
 		{
