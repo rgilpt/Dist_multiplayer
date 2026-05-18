@@ -1,52 +1,50 @@
 extends Node2D
 
-@export var speed : float = 500.0
-var shooter : String = ""
-var velocity : Vector2 = Vector2.ZERO
-var _mouse_direction : Vector2 = Vector2.RIGHT
-
-@rpc("authority", "call_remote", "reliable")
-func set_mouse_direction(dir: Vector2) -> void:
-	_mouse_direction = dir
+@export var speed: float = 800.0
+var shooter: String = ""
+var direction: Vector2 = Vector2.RIGHT
 
 func _ready():
-	# Set bullet size based on shooter
 	if shooter == "player_one":
-		$Sprite.modulate = Color(0.3, 0.7, 1.0)  # Blue for P1
+		$Sprite.modulate = Color(0.3, 0.7, 1.0)
 	else:
-		$Sprite.modulate = Color(1.0, 0.3, 0.3)  # Red for P2
-	rpc_set_shooter(shooter)
+		$Sprite.modulate = Color(1.0, 0.3, 0.3)
 
-@rpc("authority", "call_remote", "reliable")
-func rpc_set_shooter(s):
+func set_mouse_direction(dir: Vector2) -> void:
+	direction = dir
+	rotation = dir.angle()
+
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_set_shooter(s: String) -> void:
 	shooter = s
-
-func _physics_process(delta):
-	# Move in the direction of the shooter's facing direction
 	if shooter == "player_one":
-		velocity = Vector2(speed, 0)
+		$Sprite.modulate = Color(0.3, 0.7, 1.0)
 	else:
-		velocity = Vector2(-speed, 0)
-	
-	global_position += velocity * delta
-	
-	# Remove if out of bounds
-	if abs(global_position.x) > 800 or abs(global_position.y) > 450:
+		$Sprite.modulate = Color(1.0, 0.3, 0.3)
+
+func _physics_process(delta: float) -> void:
+	# Always move in the aimed direction
+	global_position += direction * speed * delta
+
+	# Destroy after travelling too far
+	if global_position.length() > 15000:
 		queue_free()
 
-func _on_body_entered(body):
+func _get_shooter_id() -> String:
+	# Returns the node name of the shooter based on shooter string
+	# This is a simplification — ideally pass peer_id directly
+	return ""
+
+
+func _on_area_2d_body_entered(body: Node2D) -> void:
 	if not multiplayer.is_server():
 		return
-	
-	if shooter == "player_one" and body.is_in_group("player_two"):
-		rpc_damage_player(body)
+	if body.is_in_group("player"):
+		# Don't hit the shooter's own player
+		# shooter is "player_one" or "player_two", body.is_player_one is a bool
+		var body_is_one: bool = body.is_player_one
+		var shooter_is_one: bool = (shooter == "player_one")
+		if body_is_one == shooter_is_one:
+			return  # same team/player, ignore
+		body.take_damage(25)
 		queue_free()
-	elif shooter == "player_two" and body.is_in_group("player_one"):
-		rpc_damage_player(body)
-		queue_free()
-
-@rpc("authority", "call_remote", "reliable")
-func rpc_damage_player(target):
-	if target.ammo > 0:
-		target.ammo = 0
-		target.score_ui.text = "Score: " + str(target.score)

@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://duhdul0h3ibqb" path="res://Scripts/Player.gd" id="1"]
 [ext_resource type="Texture2D" uid="uid://pgo1cadf20q5" path="res://icon.svg" id="2_kyqiw"]
+[ext_resource type="Texture2D" uid="uid://f2u2461nv1ew" path="res://Assets/gun.png" id="3_gntrk"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_kyqiw"]
 size = Vector2(128, 128)
@@ -21,6 +22,10 @@ region_rect = Rect2(0, 0, 32, 32)
 shape = SubResource("RectangleShape2D_kyqiw")
 
 [node name="WeaponHolder" type="Node2D" parent="." unique_id=2100537290]
+
+[node name="Sprite2D" type="Sprite2D" parent="WeaponHolder" unique_id=312177372]
+texture_filter = 1
+texture = ExtResource("3_gntrk")
 
 [node name="FlagArea" type="Area2D" parent="." unique_id=109476146]
 
@@ -50,6 +55,13 @@ offset_left = -61.0
 offset_top = -120.0
 offset_bottom = -97.0
 text = "Score: 0"
+
+[node name="HealthUI" type="Label" parent="." unique_id=2072400303]
+offset_left = -62.0
+offset_top = -144.0
+offset_right = -1.0
+offset_bottom = -121.0
+text = "HP: 100"
 
 [node name="FlagIndicator" type="ColorRect" parent="." unique_id=1356446965]
 visible = false
