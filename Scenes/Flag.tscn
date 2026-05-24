@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://s53u73n5a2eq"]
 
 [ext_resource type="Texture2D" uid="uid://d2eb1rwfewtr" path="res://Assets/flag.png" id="1_1hkyp"]
+[ext_resource type="Script" path="res://Scripts/Flag.gd" id="2_flagsc"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_i6t4d"]
 size = Vector2(5, 14)
@@ -9,6 +10,9 @@ size = Vector2(5, 14)
 radius = 15.0
 
 [node name="Flag" type="StaticBody2D" unique_id=1784713432]
+collision_layer = 2
+collision_mask = 0
+script = ExtResource("2_flagsc")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1283963017]
 texture_filter = 1

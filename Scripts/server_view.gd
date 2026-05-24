@@ -36,19 +36,20 @@ func _process(_delta: float) -> void:
 		scores_lbl.text = "Blue: %d  |  Red: %d" % [nm.score_team_a, nm.score_team_b]
 	# Update connected players
 	var peer_count = nm.peer_teams.size()
-	players_lbl.text = "Players connected: %d/4" % peer_count
+	players_lbl.text = "Players connected: %d/%d" % [peer_count, nm.max_players]
 
 func _on_team_data_updated(blue: int, red: int, _your_team: int) -> void:
-	teams_lbl.text = "Blue Team: %d/2   Red Team: %d/2" % [blue, red]
+	var mpt = nm.max_per_team
+	teams_lbl.text = "Blue Team: %d/%d   Red Team: %d/%d" % [blue, mpt, red, mpt]
 	var total := blue + red
-	_update_status("Team selection in progress... (%d/4 picked)" % total)
-	# Show force start button once at least 2 players have picked
-	start_btn.visible = (total >= 2)
+	_update_status("Team selection in progress... (%d/%d picked)" % [total, nm.max_players])
+	# Show force start button once at least one player per team has picked
+	start_btn.visible = (blue >= 1 and red >= 1)
 
 func _on_start_pressed() -> void:
-	# Force start even if not all 4 players picked
+	# Force start even if not all players have picked a team
 	print("Server force-starting game...")
-	nm.rpc_begin_game.rpc()
+	nm._begin_game_server()
 
 func _on_game_started() -> void:
 	_update_status("Game in progress!")

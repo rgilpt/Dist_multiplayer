@@ -11,6 +11,8 @@ extends CharacterBody2D
 @onready var score_ui : Label = $ScoreUI
 @onready var health_ui : Label = $HealthUI
 @onready var flag_indicator : ColorRect = $FlagIndicator
+@onready var flag_holder : Node2D = $FlagHolder
+@onready var flag_sprite : Sprite2D = $FlagHolder/FlagSprite
 @onready var p_1_zone: ColorRect = $HomeZoneArea/P1Zone
 @onready var p_2_zone: ColorRect = $HomeZoneArea/P2Zone
 @onready var camera_2d: Camera2D = $Camera2D
@@ -19,8 +21,10 @@ var is_player_one : bool = false
 var is_local_player: bool = false
 var ammo : int = 6
 var score : int = 0
-var has_flag : bool = false
-var carry_flag_texture : Texture2D
+## Which team's flag this player is carrying. -1 = none.
+var carried_flag_team: int = -1
+var has_flag: bool:
+	get: return carried_flag_team != -1
 var _ready_to_sync: bool = false
 
 var max_health: int = 100
@@ -44,7 +48,6 @@ func _ready():
 
 	update_health_ui()
 	flag_area.body_entered.connect(_on_flag_area_body_entered)
-	home_zone_area.body_entered.connect(_on_home_zone_entered)
 
 	if is_local_player:
 		await get_tree().create_timer(0.5).timeout
@@ -74,7 +77,7 @@ func _physics_process(_delta):
 	move_and_slide()
 
 	if _ready_to_sync:
-		rpc("sync_position", global_position, sprite.flip_h, weapon_holder.rotation)
+		sync_position.rpc(global_position, sprite.flip_h, weapon_holder.rotation)
 
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func sync_position(pos: Vector2, flipped: bool, weapon_rot: float) -> void:
@@ -102,7 +105,7 @@ func fire():
 	_spawn_bullet(direction)
 
 	# Tell server to spawn bullet for collision detection
-	rpc_id(1, "server_spawn_bullet", global_position, direction, 
+	server_spawn_bullet.rpc_id(1, global_position, direction,
 		"player_one" if is_player_one else "player_two")
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -138,9 +141,9 @@ func take_damage(amount: int) -> void:
 		return
 	health -= amount
 	health = max(health, 0)
-	rpc("rpc_sync_health", health)
+	rpc_sync_health.rpc(health)
 	if health <= 0:
-		rpc("rpc_die")
+		rpc_die.rpc()
 
 @rpc("any_peer", "call_local", "reliable")
 func rpc_sync_health(new_health: int) -> void:
@@ -159,12 +162,11 @@ func rpc_die() -> void:
 	collider.set_deferred("disabled", true)
 	print("Player ", name, " died!")
 
-	# Drop flag if carrying
-	if has_flag:
-		has_flag = false
-		flag_indicator.visible = false
-		if multiplayer.is_server():
-			get_node("/root/Main/NetworkManager").respawn_flag()
+	# Drop flag at death position — teammates can return it
+	if has_flag and multiplayer.is_server():
+		var drop_team := carried_flag_team
+		rpc_set_flag.rpc(-1)  # clear from player on all peers
+		get_node("/root/Main/NetworkManager").drop_flag(drop_team, global_position)
 
 	# Respawn after 3 seconds
 	await get_tree().create_timer(3.0).timeout
@@ -181,13 +183,14 @@ func _respawn() -> void:
 	if is_local_player:
 		var nm = get_node_or_null("/root/Main/NetworkManager")
 		if nm:
-			var my_team = nm.peer_teams.get(multiplayer.get_unique_id(), -1)
-			var spawn_pos = nm._get_spawn_position(my_team)
+			var my_id := multiplayer.get_unique_id()
+			var my_team = nm.peer_teams.get(my_id, -1)
+			var spawn_pos = nm._get_spawn_position(my_team, my_id)
 			global_position = spawn_pos
-			rpc("sync_position", global_position, sprite.flip_h, weapon_holder.rotation)
+			sync_position.rpc(global_position, sprite.flip_h, weapon_holder.rotation)
 
 	if multiplayer.is_server():
-		rpc("rpc_sync_health", health)
+		rpc_sync_health.rpc(health)
 
 
 # --- Ammo ---
@@ -199,39 +202,61 @@ func update_ammo_ui():
 
 # --- Flag ---
 
-func _on_flag_area_body_entered(body):
-	if body.is_in_group("flag") and not has_flag:
-		rpc_request_flag()
+func _on_flag_area_body_entered(body: Node2D) -> void:
+	if not is_local_player:
+		return
+	if not body.is_in_group("flag"):
+		return
+	var flag_team: int = body.get("flag_team_id") if body.get("flag_team_id") != null else -1
+	if flag_team == -1:
+		return
+	var nm := get_node_or_null("/root/Main/NetworkManager")
+	if nm == null:
+		return
+	var my_team: int = nm.peer_teams.get(multiplayer.get_unique_id(), -1)
+	if flag_team != my_team and carried_flag_team == -1:
+		# Enemy flag — pick it up
+		rpc_request_flag.rpc_id(1, flag_team)
+	elif flag_team == my_team and not nm.flags_at_home.get(my_team, true):
+		# Own dropped flag — return it to base
+		rpc_return_flag.rpc_id(1, flag_team)
 
 @rpc("any_peer", "call_remote", "reliable")
-func rpc_request_flag():
+func rpc_request_flag(flag_team: int) -> void:
 	if not multiplayer.is_server():
 		return
-	has_flag = true
-	flag_indicator.visible = true
-	get_node("/root/Main/NetworkManager").remove_flag()
-	rpc("rpc_set_flag", true)
+	var nm := get_node("/root/Main/NetworkManager")
+	var player_team: int = nm.peer_teams.get(int(name), -1)
+	if flag_team == player_team or carried_flag_team != -1:
+		return  # own flag or already carrying
+	nm.remove_flag(flag_team)
+	rpc_set_flag.rpc(flag_team)
 
 @rpc("any_peer", "call_remote", "reliable")
-func rpc_set_flag(flag: bool):
-	has_flag = flag
-	flag_indicator.visible = flag
+func rpc_return_flag(flag_team: int) -> void:
+	if not multiplayer.is_server():
+		return
+	get_node("/root/Main/NetworkManager").respawn_flag(flag_team)
 
-func _on_home_zone_entered(body):
-	if has_flag and multiplayer.is_server():
-		score += 1
-		score_ui.text = "Score: " + str(score)
-		rpc("rpc_sync_score", score)
-		rpc("rpc_release_flag")
-		get_node("/root/Main/NetworkManager").respawn_flag()
+# call_local so server + all clients update the carried flag state.
+# Pass -1 to clear (flag dropped or scored).
+@rpc("any_peer", "call_local", "reliable")
+func rpc_set_flag(flag_team: int) -> void:
+	carried_flag_team = flag_team
+	var carrying := (flag_team != -1)
+	flag_indicator.visible = carrying
+	flag_holder.visible = carrying
+	if flag_team == 1:
+		# Carrying Blue team's flag — show blue
+		flag_sprite.modulate = Color(0.3, 0.7, 1.0)
+		flag_indicator.color = Color(0.3, 0.7, 1.0, 0.7)
+	elif flag_team == 2:
+		# Carrying Red team's flag — show red
+		flag_sprite.modulate = Color(1.0, 0.3, 0.3)
+		flag_indicator.color = Color(1.0, 0.3, 0.3, 0.7)
 
-@rpc("any_peer", "call_remote", "reliable")
-func rpc_release_flag():
-	has_flag = false
-	flag_indicator.visible = false
-
-@rpc("any_peer", "call_remote", "reliable")
-func rpc_sync_score(new_score: int):
+@rpc("any_peer", "call_local", "reliable")
+func rpc_sync_score(new_score: int) -> void:
 	score = new_score
 	if score_ui:
 		score_ui.text = "Score: " + str(score)

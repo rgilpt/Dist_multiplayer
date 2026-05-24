@@ -2,14 +2,20 @@ extends Node
 class_name NetworkManager
 
 var _peer: ENetMultiplayerPeer
-var has_flag: bool = false
-var flag_instance: Node2D = null
-var flag_position: Vector2 = Vector2.ZERO
+
+# Classic CTF: two flags, one per team.
+# flag_team_id 1 = Blue flag (at Blue HQ), 2 = Red flag (at Red HQ)
+const FLAG_HOME_POSITIONS: Dictionary = {
+	1: Vector2(384, 224),    # inside Blue HQ, upper area
+	2: Vector2(3184, 5344),  # inside Red HQ, lower area
+}
+var flag_instances: Dictionary = {}        # flag_team_id -> Node2D (null if carried)
+var flags_at_home: Dictionary = {1: true, 2: true}  # flag_team_id -> bool
 
 var score_team_a: int = 0
 var score_team_b: int = 0
 
-var team_counts: Dictionary = {0: 0, 1: 0}
+var team_counts: Dictionary = {1: 0, 2: 0}
 var peer_teams: Dictionary = {}
 
 var is_game_active: bool = false
@@ -20,6 +26,9 @@ var server_port: int = 7777
 var is_host: bool = false
 var max_peers: int = 4
 
+var max_players: int = 4
+var max_per_team: int = 2
+
 signal flag_spawned
 signal flag_picked_up
 signal flag_scored
@@ -27,6 +36,19 @@ signal game_over
 signal all_players_joined
 signal team_data_updated(blue_count: int, red_count: int, your_team: int)
 signal game_started
+signal game_mode_updated
+signal discovery_status(message: String)
+
+const DISCOVERY_PORT: int = 7778
+const DISCOVERY_MSG: String = "DISCOVER_DIST"
+const DISCOVERY_RESPONSE: String = "DIST_SERVER"
+const DISCOVERY_INTERVAL: float = 1.0
+const DISCOVERY_TIMEOUT: float = 10.0
+
+var _discovery_udp: PacketPeerUDP = null
+var _discovering: bool = false
+var _discovery_timer: float = 0.0
+var _discovery_elapsed: float = 0.0
 
 var _initialized: bool = false
 var player_scene = preload("res://Scenes/Player.tscn")
@@ -51,6 +73,11 @@ func _ready():
 
 	var args := OS.get_cmdline_args()
 
+	if "--1v1" in args:
+		max_players = 2
+		max_per_team = 1
+		print("Game mode: 1v1")
+
 	if "--server" in args:
 		print("Initializing as SERVER...")
 		is_host = true
@@ -62,24 +89,23 @@ func _ready():
 		multiplayer.multiplayer_peer = _peer
 		_peer.peer_connected.connect(_on_peer_connected)
 		_peer.peer_disconnected.connect(_on_peer_disconnected)
+		_start_discovery_listener()
 		print("Host ready. Max peers: ", max_peers)
 
 	elif "--client" in args:
 		var addr_index := args.find("--address")
 		if addr_index != -1 and addr_index + 1 < args.size():
+			# Address provided explicitly — connect immediately
 			server_address = args[addr_index + 1]
-		_peer = ENetMultiplayerPeer.new()
-		var error: Error = _peer.create_client(server_address, server_port)
-		if error != OK:
-			printerr("Client connection failed: ", error)
-			return
-		multiplayer.multiplayer_peer = _peer
-		multiplayer.connected_to_server.connect(_on_connected_to_server)
-		print("Connecting to ", server_address, ":", server_port)
+			_connect_to_server(server_address)
+		else:
+			# No address — discover server on local network
+			_start_discovery_broadcast()
 	else:
 		printerr("No --server or --client argument provided.")
 
 func _process(delta: float) -> void:
+	_process_discovery(delta)
 	if not is_game_active:
 		return
 	if not multiplayer.is_server():
@@ -87,6 +113,91 @@ func _process(delta: float) -> void:
 	game_timer -= delta
 	if game_timer <= 0:
 		_end_game()
+
+# --- LAN Discovery ---
+
+func _start_discovery_listener() -> void:
+	_discovery_udp = PacketPeerUDP.new()
+	var err := _discovery_udp.bind(DISCOVERY_PORT)
+	if err != OK:
+		printerr("Discovery listener failed to bind port ", DISCOVERY_PORT, ": ", err)
+		_discovery_udp = null
+		return
+	print("Discovery listener active on port ", DISCOVERY_PORT)
+
+func _start_discovery_broadcast() -> void:
+	_discovery_udp = PacketPeerUDP.new()
+	_discovery_udp.set_broadcast_enabled(true)
+	# Bind to a reply port so the server knows where to send the response
+	var err := _discovery_udp.bind(DISCOVERY_PORT + 1)
+	if err != OK:
+		printerr("Discovery broadcast socket failed: ", err, " — falling back to localhost")
+		_discovery_udp = null
+		_connect_to_server("127.0.0.1")
+		return
+	_discovering = true
+	_discovery_elapsed = 0.0
+	_discovery_timer = DISCOVERY_INTERVAL  # fire immediately on first frame
+	emit_signal("discovery_status", "Searching for server on local network...")
+	print("LAN discovery started")
+
+func _connect_to_server(address: String) -> void:
+	server_address = address
+	_peer = ENetMultiplayerPeer.new()
+	var error: Error = _peer.create_client(server_address, server_port)
+	if error != OK:
+		printerr("Client connection failed: ", error)
+		return
+	multiplayer.multiplayer_peer = _peer
+	multiplayer.connected_to_server.connect(_on_connected_to_server)
+	print("Connecting to ", server_address, ":", server_port)
+
+func _process_discovery(delta: float) -> void:
+	if _discovery_udp == null:
+		return
+
+	if is_host:
+		# Server: respond to any discovery broadcast
+		while _discovery_udp.get_available_packet_count() > 0:
+			var packet := _discovery_udp.get_packet()
+			if packet.get_string_from_utf8() == DISCOVERY_MSG:
+				var client_ip := _discovery_udp.get_packet_ip()
+				var client_port := _discovery_udp.get_packet_port()
+				print("Discovery request from ", client_ip, " — responding")
+				_discovery_udp.set_dest_address(client_ip, client_port)
+				_discovery_udp.put_packet(DISCOVERY_RESPONSE.to_utf8_buffer())
+	else:
+		# Client: broadcast until server responds or timeout
+		if not _discovering:
+			return
+		_discovery_elapsed += delta
+		_discovery_timer += delta
+
+		if _discovery_timer >= DISCOVERY_INTERVAL:
+			_discovery_timer = 0.0
+			_discovery_udp.set_dest_address("255.255.255.255", DISCOVERY_PORT)
+			_discovery_udp.put_packet(DISCOVERY_MSG.to_utf8_buffer())
+			print("Broadcasting discovery... (%.0fs)" % _discovery_elapsed)
+
+		while _discovery_udp.get_available_packet_count() > 0:
+			var packet := _discovery_udp.get_packet()
+			if packet.get_string_from_utf8() == DISCOVERY_RESPONSE:
+				var found_ip := _discovery_udp.get_packet_ip()
+				print("Server found at ", found_ip)
+				_discovering = false
+				_discovery_udp.close()
+				_discovery_udp = null
+				emit_signal("discovery_status", "Found server at " + found_ip)
+				_connect_to_server(found_ip)
+				return
+
+		if _discovery_elapsed >= DISCOVERY_TIMEOUT:
+			print("Discovery timed out — falling back to 127.0.0.1")
+			_discovering = false
+			_discovery_udp.close()
+			_discovery_udp = null
+			emit_signal("discovery_status", "No server found. Trying localhost...")
+			_connect_to_server("127.0.0.1")
 
 func _get_level_builder():
 	if level_builder == null:
@@ -116,7 +227,8 @@ func _on_peer_connected(id: int) -> void:
 		var existing_id := int(child.name)
 		if existing_id != id:
 			rpc_id(id, "spawn_remote_player", existing_id, child.position)
-	rpc_id(id, "rpc_update_team_counts", team_counts[0], team_counts[1], -1, -1)
+	rpc_id(id, "rpc_update_team_counts", team_counts[1], team_counts[2], -1, -1)
+	rpc_id(id, "rpc_set_game_mode", max_players, max_per_team)
 
 func _on_peer_disconnected(id: int) -> void:
 	print("Peer disconnected: ", id)
@@ -125,33 +237,72 @@ func _on_peer_disconnected(id: int) -> void:
 	if id in peer_teams:
 		team_counts[peer_teams[id]] -= 1
 		peer_teams.erase(id)
-		rpc("rpc_update_team_counts", team_counts[0], team_counts[1], -1, -1)
+		rpc_update_team_counts.rpc(team_counts[1], team_counts[2], -1, -1)
 
 
 # --- Spawning ---
 
-func _get_spawn_position(team_id: int) -> Vector2:
-	print("level_builder: ", level_builder)
-	print("blue_spawns size: ", level_builder.blue_spawns.size() if level_builder else "NULL")
-	print("red_spawns size: ", level_builder.red_spawns.size() if level_builder else "NULL")
-	
+func _get_spawn_position(team_id: int, peer_id: int = -1) -> Vector2:
 	var lb = _get_level_builder()
-	print("level_builder: ", lb)
 	if lb == null:
-		return Vector2(300, 300) if team_id == 0 else Vector2(3800, 3800)
-	var spawns: Array = lb.blue_spawns if team_id == 0 else lb.red_spawns
-	print("spawns for team ", team_id, ": ", spawns)
+		return Vector2(300, 300) if team_id == 1 else Vector2(3800, 3800)
+	var spawns: Array = lb.blue_spawns if team_id == 1 else lb.red_spawns
 	if spawns.is_empty():
-		return Vector2(300, 300) if team_id == 0 else Vector2(3800, 3800)
-	var idx := _count_team_players(team_id)
-	return spawns[idx % spawns.size()]
+		return Vector2(300, 300) if team_id == 1 else Vector2(3800, 3800)
 
-func _count_team_players(team_id: int) -> int:
-	var count := 0
-	for pid in peer_teams:
-		if peer_teams[pid] == team_id and players.has_node(str(pid)):
-			count += 1
-	return count
+	# Use sorted peer-ID order so the index is deterministic even when all
+	# players spawn at the same time (before any node enters the tree).
+	var idx := 0
+	if peer_id != -1:
+		var team_peers: Array = []
+		for pid in peer_teams:
+			if peer_teams[pid] == team_id:
+				team_peers.append(pid)
+		team_peers.sort()
+		var pos_in_list := team_peers.find(peer_id)
+		idx = pos_in_list if pos_in_list != -1 else 0
+
+	var base_pos: Vector2 = spawns[idx % spawns.size()]
+	return _find_free_spawn_near(base_pos, lb)
+
+# Search outward from base_pos for a floor tile that no existing player occupies.
+func _find_free_spawn_near(base_pos: Vector2, lb: Node) -> Vector2:
+	var tile_map = lb.tile_map
+	if tile_map == null:
+		return base_pos
+
+	# Build candidate offsets: centre first, then expanding rings (shuffled per
+	# ring so the fallback direction is random rather than always top-left).
+	var candidates: Array[Vector2] = [Vector2.ZERO]
+	for ring in range(1, 8):  # search up to 7 tiles (224 px) out
+		var ring_offsets: Array[Vector2] = []
+		for dx in range(-ring, ring + 1):
+			for dy in range(-ring, ring + 1):
+				if abs(dx) == ring or abs(dy) == ring:
+					ring_offsets.append(Vector2(dx * 32, dy * 32))
+		ring_offsets.shuffle()
+		candidates.append_array(ring_offsets)
+
+	for offset in candidates:
+		var candidate := base_pos + offset
+		if _is_valid_spawn(candidate, tile_map):
+			return candidate
+
+	return base_pos  # give up and use original
+
+func _is_valid_spawn(pos: Vector2, tile_map) -> bool:
+	# Every tile the player's bounding box overlaps must be a floor tile.
+	var half := 28  # slightly smaller than half of the 64 px player hitbox
+	for cx in [-half, half]:
+		for cy in [-half, half]:
+			var tile := Vector2i(int(pos.x + cx) / 32, int(pos.y + cy) / 32)
+			if tile_map.get_cell_atlas_coords(tile) != Vector2i(0, 0):
+				return false
+	# Must not overlap any player already in the scene.
+	for child in players.get_children():
+		if child.global_position.distance_to(pos) < 60.0:
+			return false
+	return true
 
 func _spawn_local_player() -> void:
 	var my_id := multiplayer.get_unique_id()
@@ -159,16 +310,16 @@ func _spawn_local_player() -> void:
 		print("Local player already spawned, skipping.")
 		return
 	var my_team = peer_teams.get(my_id, -1)
-	var spawn_pos := _get_spawn_position(my_team)
+	var spawn_pos := _get_spawn_position(my_team, my_id)
 	var player = player_scene.instantiate()
 	player.name = str(my_id)
 	player.position = spawn_pos
-	player.is_player_one = (my_id == 1)
+	player.is_player_one = (my_team == 1)
 	player.is_local_player = true
 	players.add_child(player)
 	player.set_multiplayer_authority(my_id)
 	print("Spawned local player at: ", spawn_pos, " team: ", my_team)
-	rpc("spawn_remote_player", my_id, spawn_pos)
+	spawn_remote_player.rpc(my_id, spawn_pos)
 
 @rpc("any_peer", "call_remote", "reliable")
 func spawn_remote_player(peer_id: int, spawn_pos: Vector2 = Vector2(300, 300)) -> void:
@@ -180,7 +331,7 @@ func spawn_remote_player(peer_id: int, spawn_pos: Vector2 = Vector2(300, 300)) -
 	var player = player_scene.instantiate()
 	player.name = str(peer_id)
 	player.position = spawn_pos
-	player.is_player_one = (peer_id == 1)
+	player.is_player_one = (peer_teams.get(peer_id, -1) == 1)
 	player.is_local_player = false
 	players.add_child(player)
 	player.set_multiplayer_authority(peer_id)
@@ -203,24 +354,22 @@ func rpc_claim_team(team_id: int) -> void:
 		peer_id = multiplayer.get_unique_id()
 	if peer_id in peer_teams:
 		return
-	if team_counts.get(team_id, 0) >= 2:
+	if team_counts.get(team_id, 0) >= max_per_team:
 		return
 	peer_teams[peer_id] = team_id
 	team_counts[team_id] += 1
-	print("Peer ", peer_id, " joined team ", "Blue" if team_id == 0 else "Red")
+	print("Peer ", peer_id, " joined team ", "Blue" if team_id == 1 else "Red")
 	if team_manager:
 		team_manager.peer_teams[peer_id] = team_id
 	# Broadcast to ALL peers including sender
-	rpc("rpc_update_team_counts", team_counts[0], team_counts[1], peer_id, team_id)
-	if peer_teams.size() >= 4:
-		# Use call_remote so server doesn't run rpc_begin_game twice
-		# Server calls _begin_game locally, clients receive via RPC
+	rpc_update_team_counts.rpc(team_counts[1], team_counts[2], peer_id, team_id)
+	if peer_teams.size() >= max_players:
 		_begin_game_server()
 
 @rpc("any_peer", "call_local", "reliable")
 func rpc_update_team_counts(blue: int, red: int, joining_peer: int, joining_team: int) -> void:
-	team_counts[0] = blue
-	team_counts[1] = red
+	team_counts[1] = blue
+	team_counts[2] = red
 	if joining_peer != -1:
 		peer_teams[joining_peer] = joining_team
 		if team_manager:
@@ -236,7 +385,7 @@ func _begin_game_server() -> void:
 	_start_game()
 	emit_signal("game_started")
 	# Tell each client to start game and spawn
-	rpc("_rpc_begin_game_client")
+	_rpc_begin_game_client.rpc()
 	# Server has no player to spawn
 
 @rpc("authority", "call_remote", "reliable")
@@ -254,69 +403,107 @@ func _start_game() -> void:
 	game_timer = 180.0
 	score_team_a = 0
 	score_team_b = 0
+	_spawn_home_zones()
 	if multiplayer.is_server():
-		spawn_flag_to_position(Vector2(2048, 2048))
-		rpc("rpc_update_scores", 0, 0)
+		spawn_flag(1)
+		spawn_flag(2)
+		rpc_update_scores.rpc(0, 0)
 
 func _end_game() -> void:
 	is_game_active = false
-	rpc("rpc_show_game_over")
+	rpc_show_game_over.rpc()
 	print("Game Over! Blue: ", score_team_a, " Red: ", score_team_b)
 
-func spawn_flag_to_position(pos: Vector2) -> void:
-	flag_position = pos
-	has_flag = false
-	var flag_scene = preload("res://Scenes/Flag.tscn")
-	if flag_instance:
-		flag_instance.queue_free()
-	flag_instance = flag_scene.instantiate()
-	flag_instance.global_position = pos
-	add_child(flag_instance)
-	flag_instance.add_to_group("flag")
-	rpc("rpc_spawn_flag", pos)
+func _create_flag_at(flag_team_id: int, pos: Vector2) -> void:
+	if flag_instances.get(flag_team_id) != null:
+		flag_instances[flag_team_id].queue_free()
+	var flag_scene := preload("res://Scenes/Flag.tscn")
+	var flag := flag_scene.instantiate()
+	flag.flag_team_id = flag_team_id
+	flag.global_position = pos
+	add_child(flag)
+	flag_instances[flag_team_id] = flag
 
-func remove_flag() -> void:
-	if flag_instance:
-		flag_instance.queue_free()
-		flag_instance = null
-	has_flag = false
-	rpc("rpc_remove_flag")
+func spawn_flag(flag_team_id: int) -> void:
+	var pos: Vector2 = FLAG_HOME_POSITIONS[flag_team_id]
+	flags_at_home[flag_team_id] = true
+	_create_flag_at(flag_team_id, pos)
+	rpc_spawn_flag.rpc(flag_team_id, pos)
 
-func respawn_flag() -> void:
-	spawn_flag_to_position(flag_position)
-	rpc("rpc_respawn_flag", flag_position)
+func remove_flag(flag_team_id: int) -> void:
+	flags_at_home[flag_team_id] = false
+	if flag_instances.get(flag_team_id) != null:
+		flag_instances[flag_team_id].queue_free()
+		flag_instances[flag_team_id] = null
+	rpc_remove_flag.rpc(flag_team_id)
+
+func respawn_flag(flag_team_id: int) -> void:
+	spawn_flag(flag_team_id)
+
+func drop_flag(flag_team_id: int, drop_pos: Vector2) -> void:
+	flags_at_home[flag_team_id] = false
+	_create_flag_at(flag_team_id, drop_pos)
+	rpc_drop_flag.rpc(flag_team_id, drop_pos)
 
 
 # --- RPCs ---
 
-@rpc("any_peer", "call_remote", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func rpc_update_scores(s_a: int, s_b: int) -> void:
 	score_team_a = s_a
 	score_team_b = s_b
 
-@rpc("any_peer", "call_remote", "reliable")
-func rpc_spawn_flag(pos: Vector2) -> void:
-	if not flag_instance:
-		var flag_scene = preload("res://Scenes/Flag.tscn")
-		flag_instance = flag_scene.instantiate()
-		flag_instance.global_position = pos
-		add_child(flag_instance)
-		flag_instance.add_to_group("flag")
+func score_for_team(team_id: int) -> void:
+	if team_id == 1:
+		score_team_a += 1
 	else:
-		flag_instance.global_position = pos
+		score_team_b += 1
+	rpc_update_scores.rpc(score_team_a, score_team_b)
+	print("Score — Blue: ", score_team_a, " Red: ", score_team_b)
+
+func _spawn_home_zones() -> void:
+	# Remove any existing home zones first (e.g. on game restart)
+	for child in get_parent().get_children():
+		if child.is_in_group("home_zone"):
+			child.queue_free()
+	var hz_scene: PackedScene = preload("res://Scenes/HomeZone.tscn")
+	# Blue HQ center: position (128,128) + half of 512x512
+	var blue_zone: Node = hz_scene.instantiate()
+	blue_zone.team_id = 1
+	blue_zone.position = Vector2(384, 384)
+	blue_zone.add_to_group("home_zone")
+	get_parent().add_child(blue_zone)
+	# Red HQ center: position (2928,4928) + half of 512x512
+	var red_zone: Node = hz_scene.instantiate()
+	red_zone.team_id = 2
+	red_zone.position = Vector2(3184, 5184)
+	red_zone.add_to_group("home_zone")
+	get_parent().add_child(red_zone)
 
 @rpc("any_peer", "call_remote", "reliable")
-func rpc_remove_flag() -> void:
-	if flag_instance:
-		flag_instance.queue_free()
-		flag_instance = null
-	has_flag = false
+func rpc_spawn_flag(flag_team_id: int, pos: Vector2) -> void:
+	flags_at_home[flag_team_id] = true
+	_create_flag_at(flag_team_id, pos)
 
 @rpc("any_peer", "call_remote", "reliable")
-func rpc_respawn_flag(pos: Vector2) -> void:
-	spawn_flag_to_position(pos)
+func rpc_remove_flag(flag_team_id: int) -> void:
+	flags_at_home[flag_team_id] = false
+	if flag_instances.get(flag_team_id) != null:
+		flag_instances[flag_team_id].queue_free()
+		flag_instances[flag_team_id] = null
+
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_drop_flag(flag_team_id: int, drop_pos: Vector2) -> void:
+	flags_at_home[flag_team_id] = false
+	_create_flag_at(flag_team_id, drop_pos)
 
 @rpc("any_peer", "call_remote", "reliable")
 func rpc_show_game_over() -> void:
 	print("Game Over!")
 	emit_signal("game_over")
+
+@rpc("authority", "call_remote", "reliable")
+func rpc_set_game_mode(p_max_players: int, p_max_per_team: int) -> void:
+	max_players = p_max_players
+	max_per_team = p_max_per_team
+	emit_signal("game_mode_updated")
