@@ -6,8 +6,16 @@ var source: TileSetAtlasSource
 var tile_set
 
 
-var blue_spawns: Array[Vector2] = []
-var red_spawns: Array[Vector2] = []
+## slot_spawns[0] = spawn positions for slot 1, slot_spawns[1] = slot 2
+var slot_spawns: Array = []
+## slot_configs[i] = raw dictionary from level.json team_slots[i]
+var slot_configs: Array = []
+
+# Legacy aliases so existing code keeps compiling during transition
+var blue_spawns: Array[Vector2]:
+	get: return slot_spawns[0] if slot_spawns.size() > 0 else []
+var red_spawns: Array[Vector2]:
+	get: return slot_spawns[1] if slot_spawns.size() > 1 else []
 
 func _ready():
 	tile_set = TileSet.new()
@@ -70,16 +78,19 @@ func _ready():
 	# Step 5: Punch openings through room walls at every corridor entry
 	for corridor in json_result.get("corridors", []):
 		_open_corridor_entries(json_result, corridor)
-	_load_spawns(json_result)
-	print("Spawns loaded - Blue: ", blue_spawns, " Red: ", red_spawns)
+	_load_team_slots(json_result)
+	print("Slots loaded: ", slot_spawns.size(), " slots")
 	print("Level built successfully!")
 
-func _load_spawns(level_data: Dictionary) -> void:
-	var spawns = level_data.get("spawns", {})
-	for s in spawns.get("blue", []):
-		blue_spawns.append(Vector2(s["x"], s["y"]))
-	for s in spawns.get("red", []):
-		red_spawns.append(Vector2(s["x"], s["y"]))
+func _load_team_slots(level_data: Dictionary) -> void:
+	slot_spawns.clear()
+	slot_configs.clear()
+	for slot in level_data.get("team_slots", []):
+		var spawns: Array[Vector2] = []
+		for s in slot.get("spawns", []):
+			spawns.append(Vector2(s["x"], s["y"]))
+		slot_spawns.append(spawns)
+		slot_configs.append(slot)
 
 # --- Room building ---
 

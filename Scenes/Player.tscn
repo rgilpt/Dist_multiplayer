@@ -80,3 +80,5 @@ position = Vector2(0, -80)
 [node name="FlagSprite" type="Sprite2D" parent="FlagHolder" unique_id=1400000002]
 texture_filter = 1
 texture = ExtResource("4_flag")
+
+[connection signal="body_entered" from="FlagArea" to="." method="_on_flag_area_body_entered"]

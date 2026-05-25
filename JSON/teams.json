@@ -1,0 +1,54 @@
+{
+  "teams": [
+	{
+	  "team_id": 1,
+	  "team_name": "Blue Foxes",
+	  "color": [0.3, 0.7, 1.0],
+	  "player1_sprite": "Assets/player_blue.png",
+	  "player2_sprite": "Assets/player_blue.png",
+	  "player1_weapon": "Assets/gun.png",
+	  "player2_weapon": "Assets/gun.png",
+	  "flag_image": "Assets/flag.png"
+	},
+	{
+	  "team_id": 2,
+	  "team_name": "Red Wolves",
+	  "color": [1.0, 0.3, 0.3],
+	  "player1_sprite": "Assets/player_red.png",
+	  "player2_sprite": "Assets/player_red.png",
+	  "player1_weapon": "Assets/gun.png",
+	  "player2_weapon": "Assets/gun.png",
+	  "flag_image": "Assets/flag.png"
+	},
+	{
+	  "team_id": 3,
+	  "team_name": "PooPooJoke",
+	  "color": [1.0, 1.0, 1.0],
+	  "player1_sprite": "Assets/poo_poo_joke_-_Joe_Player.png",
+	  "player2_sprite": "Assets/poo_poo_joke_kyle_-_Player.png",
+	  "player1_weapon": "Assets/gun.png",
+	  "player2_weapon": "Assets/gun.png",
+	  "flag_image": "Assets/flag.png"
+	},
+	{
+	  "team_id": 5,
+	  "team_name": "Gamers",
+	  "color": [1.0, 1.0, 1.0],
+	  "player1_sprite": "Assets/Gamers_my_character_01.png",
+	  "player2_sprite": "Assets/Gamers_player_02.png",
+	  "player1_weapon": "Assets/Gamers_gun_01.png",
+	  "player2_weapon": "Assets/Gamers_gun_02.png",
+	  "flag_image": "Assets/flag.png"
+	},
+	{
+	  "team_id": 4,
+	  "team_name": "Green Loops",
+	  "color": [0.3, 0.7, 0.3],
+	  "player1_sprite": "Assets/player_blue.png",
+	  "player2_sprite": "Assets/player_blue.png",
+	  "player1_weapon": "Assets/gun.png",
+	  "player2_weapon": "Assets/gun.png",
+	  "flag_image": "Assets/flag.png"
+	}
+  ]
+}

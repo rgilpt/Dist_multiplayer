@@ -33,18 +33,34 @@ func _process(_delta: float) -> void:
 		var mins := int(nm.game_timer) / 60
 		var secs := int(nm.game_timer) % 60
 		timer_lbl.text = "Time: %02d:%02d" % [mins, secs]
-		scores_lbl.text = "Blue: %d  |  Red: %d" % [nm.score_team_a, nm.score_team_b]
+		var parts: Array = []
+		for tid in nm.scores:
+			if nm.team_counts.get(tid, 0) == 0:
+				continue
+			var cfg: Dictionary = nm._get_team_config(tid)
+			var tname: String = cfg.get("team_name", "Team %d" % tid)
+			parts.append("%s: %d" % [tname, nm.scores[tid]])
+		scores_lbl.text = "  |  ".join(parts)
 	# Update connected players
 	var peer_count = nm.peer_teams.size()
 	players_lbl.text = "Players connected: %d/%d" % [peer_count, nm.max_players]
 
-func _on_team_data_updated(blue: int, red: int, _your_team: int) -> void:
-	var mpt = nm.max_per_team
-	teams_lbl.text = "Blue Team: %d/%d   Red Team: %d/%d" % [blue, mpt, red, mpt]
-	var total := blue + red
+func _on_team_data_updated(counts: Dictionary, _your_team: int) -> void:
+	var mpt: int = nm.max_per_team
+	var parts: Array = []
+	var total: int = 0
+	var teams_with_players: int = 0
+	for tid in counts:
+		if counts[tid] == 0:
+			continue
+		var cfg: Dictionary = nm._get_team_config(tid)
+		var tname: String = cfg.get("team_name", "Team %d" % tid)
+		parts.append("%s: %d/%d" % [tname, counts[tid], mpt])
+		total += counts[tid]
+		teams_with_players += 1
+	teams_lbl.text = "   ".join(parts)
 	_update_status("Team selection in progress... (%d/%d picked)" % [total, nm.max_players])
-	# Show force start button once at least one player per team has picked
-	start_btn.visible = (blue >= 1 and red >= 1)
+	start_btn.visible = teams_with_players >= 2
 
 func _on_start_pressed() -> void:
 	# Force start even if not all players have picked a team
@@ -58,7 +74,14 @@ func _on_game_started() -> void:
 	scores_lbl.visible = true
 
 func _on_game_over() -> void:
-	_update_status("Game Over!\nBlue: %d  |  Red: %d" % [nm.score_team_a, nm.score_team_b])
+	var parts: Array = []
+	for tid in nm.scores:
+		if nm.team_counts.get(tid, 0) == 0:
+			continue
+		var cfg: Dictionary = nm._get_team_config(tid)
+		var tname: String = cfg.get("team_name", "Team %d" % tid)
+		parts.append("%s: %d" % [tname, nm.scores[tid]])
+	_update_status("Game Over!\n" + "  |  ".join(parts))
 	timer_lbl.visible = false
 
 func _update_status(text: String) -> void:

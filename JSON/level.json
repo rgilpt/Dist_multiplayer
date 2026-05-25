@@ -99,14 +99,22 @@
 		{"start_room": "room_center_upper","end_room": "room_right_upper", "start_side": "right",  "end_side": "left",   "width": 128},
 		{"start_room": "room_center_mid",  "end_room": "room_right_lower", "start_side": "right",  "end_side": "left",   "width": 128}
 	],
-	"spawns": {
-		"blue": [
-			{"x": 256, "y": 288},
-			{"x": 448, "y": 480}
-		],
-		"red": [
-			{"x": 3072, "y": 5056},
-			{"x": 3264, "y": 5248}
-		]
-}
+	"team_slots": [
+		{
+			"flag_position":      {"x": 384,  "y": 224},
+			"home_zone_position": {"x": 384,  "y": 384},
+			"spawns": [
+				{"x": 256, "y": 288},
+				{"x": 448, "y": 480}
+			]
+		},
+		{
+			"flag_position":      {"x": 3184, "y": 5344},
+			"home_zone_position": {"x": 3184, "y": 5184},
+			"spawns": [
+				{"x": 3072, "y": 5056},
+				{"x": 3264, "y": 5248}
+			]
+		}
+	]
 }

@@ -3,20 +3,13 @@ class_name NetworkManager
 
 var _peer: ENetMultiplayerPeer
 
-# Classic CTF: two flags, one per team.
-# flag_team_id 1 = Blue flag (at Blue HQ), 2 = Red flag (at Red HQ)
-const FLAG_HOME_POSITIONS: Dictionary = {
-	1: Vector2(384, 224),    # inside Blue HQ, upper area
-	2: Vector2(3184, 5344),  # inside Red HQ, lower area
-}
-var flag_instances: Dictionary = {}        # flag_team_id -> Node2D (null if carried)
-var flags_at_home: Dictionary = {1: true, 2: true}  # flag_team_id -> bool
-
-var score_team_a: int = 0
-var score_team_b: int = 0
-
-var team_counts: Dictionary = {1: 0, 2: 0}
+var flag_instances: Dictionary = {}   # flag_team_id -> Node2D (null if carried)
+var flags_at_home: Dictionary = {}    # flag_team_id -> bool
+var scores: Dictionary = {}           # team_id -> int
+var team_counts: Dictionary = {}      # team_id -> int  (populated from teams.json)
 var peer_teams: Dictionary = {}
+## Maps team_id -> slot index (0 or 1). Assigned at game start from level.json slots.
+var team_slot_map: Dictionary = {}
 
 var is_game_active: bool = false
 var game_timer: float = 180.0
@@ -34,7 +27,7 @@ signal flag_picked_up
 signal flag_scored
 signal game_over
 signal all_players_joined
-signal team_data_updated(blue_count: int, red_count: int, your_team: int)
+signal team_data_updated(counts: Dictionary, your_team: int)
 signal game_started
 signal game_mode_updated
 signal discovery_status(message: String)
@@ -52,6 +45,7 @@ var _discovery_elapsed: float = 0.0
 
 var _initialized: bool = false
 var player_scene = preload("res://Scenes/Player.tscn")
+var team_config: Dictionary = {}
 
 @onready var players: Node2D = $"../Players"
 @onready var team_manager = $"../TeamManager"
@@ -62,6 +56,8 @@ func _ready():
 		print("WARNING: _ready() called twice, skipping.")
 		return
 	_initialized = true
+	_load_team_config()
+	_init_team_data()
 
 	# Debug: print full tree to find level_builder
 	print("NetworkManager parent: ", get_parent().name)
@@ -217,6 +213,98 @@ func _find_node_by_script(node: Node, class_name_str: String) -> Node:
 	return null
 
 
+# --- Team Config ---
+
+func _load_team_config() -> void:
+	var file := FileAccess.open("res://JSON/teams.json", FileAccess.READ)
+	if file == null:
+		printerr("teams.json not found — using default visuals")
+		return
+	var json := JSON.new()
+	var err := json.parse(file.get_as_text())
+	file.close()
+	if err != OK:
+		printerr("teams.json parse error: ", json.get_error_message())
+		return
+	team_config = json.data
+	print("Loaded teams.json: ", team_config.get("teams", []).size(), " teams")
+
+## Populate team_counts, flags_at_home, and scores from the loaded config.
+func _init_team_data() -> void:
+	team_counts.clear()
+	flags_at_home.clear()
+	scores.clear()
+	for t in team_config.get("teams", []):
+		var tid: int = t.get("team_id", -1)
+		if tid == -1:
+			continue
+		team_counts[tid] = 0
+		flags_at_home[tid] = true
+		scores[tid] = 0
+	# Fallback: keep working if teams.json is missing
+	if team_counts.is_empty():
+		team_counts = {1: 0, 2: 0}
+		flags_at_home = {1: true, 2: true}
+		scores = {1: 0, 2: 0}
+
+## Returns the config dictionary for team_id, or {} if not found.
+func _get_team_config(team_id: int) -> Dictionary:
+	for t in team_config.get("teams", []):
+		if t.get("team_id", -1) == team_id:
+			return t
+	return {}
+
+## Assigns the 2 active teams to level slots (sorted team_id order → slot 0, slot 1).
+## Must be called after all teams have joined, before _start_game.
+func _assign_team_slots() -> void:
+	team_slot_map.clear()
+	var active: Array = []
+	for tid in team_counts:
+		if team_counts[tid] > 0:
+			active.append(tid)
+	active.sort()
+	for i in active.size():
+		team_slot_map[active[i]] = i
+	print("Team slot assignments: ", team_slot_map)
+
+## Returns the level slot config Dictionary for the given team_id, or {}.
+func _get_slot_config(team_id: int) -> Dictionary:
+	var lb = _get_level_builder()
+	if lb == null:
+		return {}
+	var slot_idx: int = team_slot_map.get(team_id, -1)
+	if slot_idx < 0 or slot_idx >= lb.slot_configs.size():
+		return {}
+	return lb.slot_configs[slot_idx]
+
+## Returns 0 for the first peer on a team, 1 for the second (by sorted peer ID).
+func _get_slot_in_team(peer_id: int, team_id: int) -> int:
+	var team_peers: Array = []
+	for pid in peer_teams:
+		if peer_teams[pid] == team_id:
+			team_peers.append(pid)
+	team_peers.sort()
+	var idx := team_peers.find(peer_id)
+	return max(idx, 0)
+
+func _apply_player_skin(player: Node, peer_id: int) -> void:
+	var team_id: int = peer_teams.get(peer_id, -1)
+	if team_id == -1:
+		return
+	var config := _get_team_config(team_id)
+	if config.is_empty():
+		return
+	var slot := _get_slot_in_team(peer_id, team_id)
+	var sprite_key := "player1_sprite" if slot == 0 else "player2_sprite"
+	var weapon_key := "player1_weapon" if slot == 0 else "player2_weapon"
+	var c_arr = config.get("color", null)
+	var team_color := Color(c_arr[0], c_arr[1], c_arr[2]) if c_arr != null else Color.WHITE
+	player.apply_team_skin(
+		"res://" + config.get(sprite_key, ""),
+		"res://" + config.get(weapon_key, ""),
+		team_color
+	)
+
 func _on_connected_to_server() -> void:
 	multiplayer.connected_to_server.disconnect(_on_connected_to_server)
 	print("Connected! My ID: ", multiplayer.get_unique_id())
@@ -226,9 +314,9 @@ func _on_peer_connected(id: int) -> void:
 	for child in players.get_children():
 		var existing_id := int(child.name)
 		if existing_id != id:
-			rpc_id(id, "spawn_remote_player", existing_id, child.position)
-	rpc_id(id, "rpc_update_team_counts", team_counts[1], team_counts[2], -1, -1)
-	rpc_id(id, "rpc_set_game_mode", max_players, max_per_team)
+			spawn_remote_player.rpc_id(id, existing_id, child.position)
+	rpc_update_team_counts.rpc_id(id, team_counts, -1, -1)
+	rpc_set_game_mode.rpc_id(id, max_players, max_per_team)
 
 func _on_peer_disconnected(id: int) -> void:
 	print("Peer disconnected: ", id)
@@ -237,7 +325,7 @@ func _on_peer_disconnected(id: int) -> void:
 	if id in peer_teams:
 		team_counts[peer_teams[id]] -= 1
 		peer_teams.erase(id)
-		rpc_update_team_counts.rpc(team_counts[1], team_counts[2], -1, -1)
+		rpc_update_team_counts.rpc(team_counts, -1, -1)
 
 
 # --- Spawning ---
@@ -245,8 +333,10 @@ func _on_peer_disconnected(id: int) -> void:
 func _get_spawn_position(team_id: int, peer_id: int = -1) -> Vector2:
 	var lb = _get_level_builder()
 	if lb == null:
-		return Vector2(300, 300) if team_id == 1 else Vector2(3800, 3800)
-	var spawns: Array = lb.blue_spawns if team_id == 1 else lb.red_spawns
+		var slot_idx: int = team_slot_map.get(team_id, 0)
+		return Vector2(300, 300) if slot_idx == 0 else Vector2(3800, 3800)
+	var slot_idx: int = team_slot_map.get(team_id, 0)
+	var spawns: Array = lb.slot_spawns[slot_idx] if lb.slot_spawns.size() > slot_idx else []
 	if spawns.is_empty():
 		return Vector2(300, 300) if team_id == 1 else Vector2(3800, 3800)
 
@@ -315,9 +405,11 @@ func _spawn_local_player() -> void:
 	player.name = str(my_id)
 	player.position = spawn_pos
 	player.is_player_one = (my_team == 1)
+	player.team_id = my_team
 	player.is_local_player = true
 	players.add_child(player)
 	player.set_multiplayer_authority(my_id)
+	_apply_player_skin(player, my_id)
 	print("Spawned local player at: ", spawn_pos, " team: ", my_team)
 	spawn_remote_player.rpc(my_id, spawn_pos)
 
@@ -332,9 +424,11 @@ func spawn_remote_player(peer_id: int, spawn_pos: Vector2 = Vector2(300, 300)) -
 	player.name = str(peer_id)
 	player.position = spawn_pos
 	player.is_player_one = (peer_teams.get(peer_id, -1) == 1)
+	player.team_id = peer_teams.get(peer_id, -1)
 	player.is_local_player = false
 	players.add_child(player)
 	player.set_multiplayer_authority(peer_id)
+	_apply_player_skin(player, peer_id)
 
 # Called on clients by server to trigger their own spawn
 @rpc("authority", "call_remote", "reliable")
@@ -354,6 +448,13 @@ func rpc_claim_team(team_id: int) -> void:
 		peer_id = multiplayer.get_unique_id()
 	if peer_id in peer_teams:
 		return
+	# Only allow joining a new (empty) team if fewer than 2 teams are already active
+	var active_teams := 0
+	for t in team_counts:
+		if team_counts[t] > 0:
+			active_teams += 1
+	if active_teams >= 2 and team_counts.get(team_id, 0) == 0:
+		return
 	if team_counts.get(team_id, 0) >= max_per_team:
 		return
 	peer_teams[peer_id] = team_id
@@ -362,20 +463,20 @@ func rpc_claim_team(team_id: int) -> void:
 	if team_manager:
 		team_manager.peer_teams[peer_id] = team_id
 	# Broadcast to ALL peers including sender
-	rpc_update_team_counts.rpc(team_counts[1], team_counts[2], peer_id, team_id)
+	rpc_update_team_counts.rpc(team_counts, peer_id, team_id)
 	if peer_teams.size() >= max_players:
 		_begin_game_server()
 
 @rpc("any_peer", "call_local", "reliable")
-func rpc_update_team_counts(blue: int, red: int, joining_peer: int, joining_team: int) -> void:
-	team_counts[1] = blue
-	team_counts[2] = red
+func rpc_update_team_counts(counts: Dictionary, joining_peer: int, joining_team: int) -> void:
+	for tid in counts:
+		team_counts[tid] = counts[tid]
 	if joining_peer != -1:
 		peer_teams[joining_peer] = joining_team
 		if team_manager:
 			team_manager.peer_teams[joining_peer] = joining_team
 	var my_team = peer_teams.get(multiplayer.get_unique_id(), -1)
-	emit_signal("team_data_updated", blue, red, my_team)
+	emit_signal("team_data_updated", team_counts, my_team)
 
 # Server-only: starts the game and tells clients
 func _begin_game_server() -> void:
@@ -401,18 +502,20 @@ func _rpc_begin_game_client() -> void:
 func _start_game() -> void:
 	is_game_active = true
 	game_timer = 180.0
-	score_team_a = 0
-	score_team_b = 0
+	_assign_team_slots()  # runs on all peers — team_counts is already synced
+	for tid in scores:
+		scores[tid] = 0
 	_spawn_home_zones()
 	if multiplayer.is_server():
-		spawn_flag(1)
-		spawn_flag(2)
-		rpc_update_scores.rpc(0, 0)
+		for tid in team_counts:
+			if team_counts[tid] > 0:  # only spawn flags for teams that have players
+				spawn_flag(tid)
+		rpc_update_scores.rpc(scores)
 
 func _end_game() -> void:
 	is_game_active = false
 	rpc_show_game_over.rpc()
-	print("Game Over! Blue: ", score_team_a, " Red: ", score_team_b)
+	print("Game Over! Scores: ", scores)
 
 func _create_flag_at(flag_team_id: int, pos: Vector2) -> void:
 	if flag_instances.get(flag_team_id) != null:
@@ -423,9 +526,20 @@ func _create_flag_at(flag_team_id: int, pos: Vector2) -> void:
 	flag.global_position = pos
 	add_child(flag)
 	flag_instances[flag_team_id] = flag
+	var flag_config := _get_team_config(flag_team_id)
+	var flag_img: String = flag_config.get("flag_image", "")
+	if flag_img != "":
+		flag.apply_skin("res://" + flag_img)
 
 func spawn_flag(flag_team_id: int) -> void:
-	var pos: Vector2 = FLAG_HOME_POSITIONS[flag_team_id]
+	var slot := _get_slot_config(flag_team_id)
+	var fp = slot.get("flag_position", null)
+	var pos: Vector2
+	if fp != null:
+		pos = Vector2(fp["x"], fp["y"])
+	else:
+		var slot_idx: int = team_slot_map.get(flag_team_id, 0)
+		pos = Vector2(384, 224) if slot_idx == 0 else Vector2(3184, 5344)
 	flags_at_home[flag_team_id] = true
 	_create_flag_at(flag_team_id, pos)
 	rpc_spawn_flag.rpc(flag_team_id, pos)
@@ -449,36 +563,30 @@ func drop_flag(flag_team_id: int, drop_pos: Vector2) -> void:
 # --- RPCs ---
 
 @rpc("any_peer", "call_local", "reliable")
-func rpc_update_scores(s_a: int, s_b: int) -> void:
-	score_team_a = s_a
-	score_team_b = s_b
+func rpc_update_scores(new_scores: Dictionary) -> void:
+	for tid in new_scores:
+		scores[tid] = new_scores[tid]
 
 func score_for_team(team_id: int) -> void:
-	if team_id == 1:
-		score_team_a += 1
-	else:
-		score_team_b += 1
-	rpc_update_scores.rpc(score_team_a, score_team_b)
-	print("Score — Blue: ", score_team_a, " Red: ", score_team_b)
+	scores[team_id] = scores.get(team_id, 0) + 1
+	rpc_update_scores.rpc(scores)
+	print("Score: ", scores)
 
 func _spawn_home_zones() -> void:
-	# Remove any existing home zones first (e.g. on game restart)
 	for child in get_parent().get_children():
 		if child.is_in_group("home_zone"):
 			child.queue_free()
 	var hz_scene: PackedScene = preload("res://Scenes/HomeZone.tscn")
-	# Blue HQ center: position (128,128) + half of 512x512
-	var blue_zone: Node = hz_scene.instantiate()
-	blue_zone.team_id = 1
-	blue_zone.position = Vector2(384, 384)
-	blue_zone.add_to_group("home_zone")
-	get_parent().add_child(blue_zone)
-	# Red HQ center: position (2928,4928) + half of 512x512
-	var red_zone: Node = hz_scene.instantiate()
-	red_zone.team_id = 2
-	red_zone.position = Vector2(3184, 5184)
-	red_zone.add_to_group("home_zone")
-	get_parent().add_child(red_zone)
+	for tid in team_slot_map:
+		var slot := _get_slot_config(tid)
+		var hp = slot.get("home_zone_position", null)
+		if hp == null:
+			continue
+		var zone: Node = hz_scene.instantiate()
+		zone.team_id = tid
+		zone.position = Vector2(hp["x"], hp["y"])
+		zone.add_to_group("home_zone")
+		get_parent().add_child(zone)
 
 @rpc("any_peer", "call_remote", "reliable")
 func rpc_spawn_flag(flag_team_id: int, pos: Vector2) -> void:

@@ -50,23 +50,11 @@ layout_mode = 2
 size_flags_horizontal = 4
 text = "Select your Team"
 
-[node name="HBoxContainer" type="HBoxContainer" parent="Content" unique_id=1114888538]
+[node name="TeamList" type="VBoxContainer" parent="Content" unique_id=1114888538]
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 3
-theme_override_constants/separation = 20
-
-[node name="TeamBlue" type="Button" parent="Content/HBoxContainer" unique_id=1946612342]
-custom_minimum_size = Vector2(150, 0)
-layout_mode = 2
-theme = ExtResource("1_irtk0")
-text = "Team Blue"
-
-[node name="TeamRed" type="Button" parent="Content/HBoxContainer" unique_id=1264764665]
-custom_minimum_size = Vector2(150, 0)
-layout_mode = 2
-theme = ExtResource("2_srwfa")
-text = "Team Red"
+theme_override_constants/separation = 10
 
 [node name="Status" type="Label" parent="Content" unique_id=82347462]
 layout_mode = 2

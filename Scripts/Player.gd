@@ -1,6 +1,6 @@
 extends CharacterBody2D
 
-@export var speed : float = 300.0
+@export var speed : float = 600.0
 
 @onready var sprite : Sprite2D = $Sprite
 @onready var collider : CollisionShape2D = $CollisionShape2D
@@ -18,6 +18,7 @@ extends CharacterBody2D
 @onready var camera_2d: Camera2D = $Camera2D
 
 var is_player_one : bool = false
+var team_id: int = -1
 var is_local_player: bool = false
 var ammo : int = 6
 var score : int = 0
@@ -37,17 +38,12 @@ func _ready():
 	camera_2d.enabled = is_local_player
 	_ready_to_sync = false
 
-	if is_player_one:
-		sprite.modulate = Color(0.3, 0.7, 1.0)
-		p_1_zone.visible = true
-		p_2_zone.visible = false
-	else:
-		sprite.modulate = Color(1.0, 0.3, 0.3)
-		p_1_zone.visible = false
-		p_2_zone.visible = true
+	# Zone visibility (cosmetic only — real home zone logic is in HomeZone.gd)
+	p_1_zone.visible = is_player_one
+	p_2_zone.visible = not is_player_one
 
 	update_health_ui()
-	flag_area.body_entered.connect(_on_flag_area_body_entered)
+	#flag_area.body_entered.connect(_on_flag_area_body_entered)
 
 	if is_local_player:
 		await get_tree().create_timer(0.5).timeout
@@ -67,9 +63,19 @@ func _physics_process(_delta):
 	sprite.flip_h = mouse_pos.x < global_position.x
 
 	var input_dir := Vector2.ZERO
-	input_dir.x = Input.get_action_strength("p1_right") - Input.get_action_strength("p1_left")
-	input_dir.y = Input.get_action_strength("p1_down") - Input.get_action_strength("p1_up")
-
+	if Input.is_action_pressed("p1_left"):
+		input_dir.x = -1
+	elif Input.is_action_pressed("p1_right"):
+		input_dir.x = 1
+	else:
+		input_dir.x = 0
+		
+	if Input.is_action_pressed("p1_up"):
+		input_dir.y = -1
+	elif Input.is_action_pressed("p1_down"):
+		input_dir.y = 1
+	else:
+		input_dir.y = 0
 	if input_dir != Vector2.ZERO:
 		input_dir = input_dir.normalized()
 
@@ -105,11 +111,10 @@ func fire():
 	_spawn_bullet(direction)
 
 	# Tell server to spawn bullet for collision detection
-	server_spawn_bullet.rpc_id(1, global_position, direction,
-		"player_one" if is_player_one else "player_two")
+	server_spawn_bullet.rpc_id(1, global_position, direction, team_id)
 
 @rpc("any_peer", "call_remote", "reliable")
-func server_spawn_bullet(pos: Vector2, direction: Vector2, shooter_str: String) -> void:
+func server_spawn_bullet(pos: Vector2, direction: Vector2, shooter_team: int) -> void:
 	if not multiplayer.is_server():
 		return
 	var bullet_scene: PackedScene = preload("res://Scenes/Weapon.tscn")
@@ -117,7 +122,7 @@ func server_spawn_bullet(pos: Vector2, direction: Vector2, shooter_str: String) 
 	bullet.global_position = pos
 	bullet.direction = direction
 	bullet.rotation = direction.angle()
-	bullet.shooter = shooter_str
+	bullet.shooter_team = shooter_team
 	get_tree().root.add_child(bullet)
 
 func _spawn_bullet(direction: Vector2) -> void:
@@ -126,7 +131,14 @@ func _spawn_bullet(direction: Vector2) -> void:
 	bullet.global_position = global_position
 	bullet.direction = direction
 	bullet.rotation = direction.angle()
-	bullet.shooter = "player_one" if is_player_one else "player_two"
+	bullet.shooter_team = team_id
+	# Tint the visual bullet with this team's color
+	var nm := get_node_or_null("/root/Main/NetworkManager")
+	if nm:
+		var cfg: Dictionary = nm._get_team_config(team_id)
+		var c_arr = cfg.get("color", null)
+		if c_arr != null:
+			bullet.modulate = Color(c_arr[0], c_arr[1], c_arr[2])
 	get_tree().root.add_child(bullet)
 
 
@@ -199,6 +211,13 @@ func update_ammo_ui():
 	if ammo_ui:
 		ammo_ui.text = "Ammo: " + str(ammo)
 
+@rpc("any_peer", "call_local", "reliable")
+func rpc_refill_ammo() -> void:
+	if not is_local_player:
+		return
+	ammo = 6
+	update_ammo_ui()
+
 
 # --- Flag ---
 
@@ -247,13 +266,33 @@ func rpc_set_flag(flag_team: int) -> void:
 	flag_indicator.visible = carrying
 	flag_holder.visible = carrying
 	if flag_team == 1:
-		# Carrying Blue team's flag — show blue
 		flag_sprite.modulate = Color(0.3, 0.7, 1.0)
 		flag_indicator.color = Color(0.3, 0.7, 1.0, 0.7)
 	elif flag_team == 2:
-		# Carrying Red team's flag — show red
 		flag_sprite.modulate = Color(1.0, 0.3, 0.3)
 		flag_indicator.color = Color(1.0, 0.3, 0.3, 0.7)
+	# Apply team's custom flag image if available
+	if carrying:
+		var nm = get_node_or_null("/root/Main/NetworkManager")
+		if nm:
+			var config: Dictionary = nm._get_team_config(flag_team)
+			var img_path: String = config.get("flag_image", "")
+			if img_path != "":
+				var tex = load("res://" + img_path)
+				if tex:
+					flag_sprite.texture = tex
+
+## Apply custom player and weapon textures loaded from res:// paths.
+func apply_team_skin(sprite_path: String, weapon_path: String, team_color: Color = Color.WHITE) -> void:
+	sprite.modulate = team_color
+	if sprite_path != "res://":
+		var tex = load(sprite_path)
+		if tex:
+			sprite.texture = tex
+	if weapon_path != "res://":
+		var tex = load(weapon_path)
+		if tex:
+			$WeaponHolder/Sprite2D.texture = tex
 
 @rpc("any_peer", "call_local", "reliable")
 func rpc_sync_score(new_score: int) -> void:

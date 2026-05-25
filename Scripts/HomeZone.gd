@@ -8,7 +8,12 @@ extends Area2D
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	if visual:
-		visual.color = Color(0.2, 0.5, 1.0, 0.35) if team_id == 1 else Color(1.0, 0.2, 0.2, 0.35)
+		var nm := get_node_or_null("/root/Main/NetworkManager")
+		var c_arr = nm._get_team_config(team_id).get("color", null) if nm else null
+		if c_arr != null:
+			visual.color = Color(c_arr[0], c_arr[1], c_arr[2], 0.35)
+		else:
+			visual.color = Color(0.2, 0.5, 1.0, 0.35) if team_id == 1 else Color(1.0, 0.2, 0.2, 0.35)
 
 func _on_body_entered(body: Node2D) -> void:
 	if not multiplayer.is_server():
@@ -22,6 +27,9 @@ func _on_body_entered(body: Node2D) -> void:
 	# Player must be on this team's side
 	if player_team != team_id:
 		return
+
+	# Refill ammo whenever a friendly player enters their home zone
+	body.rpc_refill_ammo.rpc()
 
 	# Classic CTF scoring rules:
 	# 1. Player must be carrying the enemy's flag
