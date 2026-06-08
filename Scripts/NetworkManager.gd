@@ -1,7 +1,7 @@
 extends Node
 class_name NetworkManager
 
-var _peer: ENetMultiplayerPeer
+var _peer: WebSocketMultiplayerPeer
 
 var flag_instances: Dictionary = {}   # flag_team_id -> Node2D (null if carried)
 var flags_at_home: Dictionary = {}    # flag_team_id -> bool
@@ -14,8 +14,8 @@ var team_slot_map: Dictionary = {}
 var is_game_active: bool = false
 var game_timer: float = 180.0
 
-var server_address: String = "127.0.0.1"
-var server_port: int = 7777
+var server_address: String = "mflxp.pt"
+var server_port: int = 9000  # local port; clients connect via wss://mflxp.pt/game
 var is_host: bool = false
 var max_peers: int = 4
 
@@ -77,31 +77,26 @@ func _ready():
 	if "--server" in args:
 		print("Initializing as SERVER...")
 		is_host = true
-		_peer = ENetMultiplayerPeer.new()
-		var error: Error = _peer.create_server(server_port, max_peers)
+		_peer = WebSocketMultiplayerPeer.new()
+		var error: Error = _peer.create_server(server_port)
 		if error != OK:
 			printerr("Server creation failed: ", error)
 			return
 		multiplayer.multiplayer_peer = _peer
 		_peer.peer_connected.connect(_on_peer_connected)
 		_peer.peer_disconnected.connect(_on_peer_disconnected)
-		_start_discovery_listener()
-		print("Host ready. Max peers: ", max_peers)
+		print("Host ready on ws://localhost:", server_port)
 
 	elif "--client" in args:
 		var addr_index := args.find("--address")
 		if addr_index != -1 and addr_index + 1 < args.size():
-			# Address provided explicitly — connect immediately
 			server_address = args[addr_index + 1]
-			_connect_to_server(server_address)
-		else:
-			# No address — discover server on local network
-			_start_discovery_broadcast()
+		# Always connect via the fixed relay URL; --address overrides the host part only
+		_connect_to_server(server_address)
 	else:
 		printerr("No --server or --client argument provided.")
 
 func _process(delta: float) -> void:
-	_process_discovery(delta)
 	if not is_game_active:
 		return
 	if not multiplayer.is_server():
@@ -139,14 +134,15 @@ func _start_discovery_broadcast() -> void:
 
 func _connect_to_server(address: String) -> void:
 	server_address = address
-	_peer = ENetMultiplayerPeer.new()
-	var error: Error = _peer.create_client(server_address, server_port)
+	_peer = WebSocketMultiplayerPeer.new()
+	var url := "wss://" + server_address + "/game"
+	var error: Error = _peer.create_client(url)
 	if error != OK:
 		printerr("Client connection failed: ", error)
 		return
 	multiplayer.multiplayer_peer = _peer
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
-	print("Connecting to ", server_address, ":", server_port)
+	print("Connecting to ", url)
 
 func _process_discovery(delta: float) -> void:
 	if _discovery_udp == null:
