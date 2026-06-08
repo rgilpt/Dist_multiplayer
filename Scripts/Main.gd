@@ -50,5 +50,5 @@ func _input(event: InputEvent) -> void:
 				_cam_origin = lobby_camera.position
 
 	elif event is InputEventMouseMotion and _panning:
-		var delta := (event.position - _pan_origin) / lobby_camera.zoom
+		var delta = (event.position - _pan_origin) / lobby_camera.zoom
 		lobby_camera.position = _cam_origin - delta
