@@ -86,7 +86,6 @@ func _ready():
 		print("Initializing as SERVER...")
 		is_host = true
 		_peer = WebSocketMultiplayerPeer.new()
-		_peer.handshake_timeout = 15.0
 		var error: Error = _peer.create_server(server_port)
 		if error != OK:
 			printerr("Server creation failed: ", error)
@@ -152,7 +151,11 @@ func _connect_to_server(address: String) -> void:
 	server_address = address
 	_connect_address_cache = address
 
-	# Clean up any previous peer
+	# Clean up any previous peer — must call close() to send TCP FIN so the
+	# server frees the slot immediately rather than waiting for handshake timeout
+	if _peer != null:
+		_peer.close()
+		_peer = null
 	if multiplayer.multiplayer_peer != null:
 		if multiplayer.connected_to_server.is_connected(_on_connected_to_server):
 			multiplayer.connected_to_server.disconnect(_on_connected_to_server)
@@ -161,7 +164,6 @@ func _connect_to_server(address: String) -> void:
 		multiplayer.multiplayer_peer = null
 
 	_peer = WebSocketMultiplayerPeer.new()
-	_peer.handshake_timeout = 15.0
 	var url := "wss://" + server_address + "/game"
 	var error: Error = _peer.create_client(url)
 	if error != OK:
@@ -363,7 +365,7 @@ func _schedule_reconnect() -> void:
 	print("Retry %d in %.1fs" % [attempt, _reconnect_delay])
 
 func _on_peer_connected(id: int) -> void:
-	print("Peer connected: ", id)
+	print("Peer connected: ", id, " | total peers now: ", _peer.get_peers().size())
 	for child in players.get_children():
 		var existing_id := int(child.name)
 		if existing_id != id:
