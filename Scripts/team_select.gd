@@ -33,6 +33,9 @@ func _ready():
 	nm.game_mode_updated.connect(update_ui)
 	nm.discovery_status.connect(_on_discovery_status)
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
+	# Signal may have already fired before TeamSelect was ready
+	if multiplayer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		_on_connected_to_server()
 
 	update_ui()
 
