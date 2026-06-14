@@ -148,6 +148,18 @@ func _start_discovery_broadcast() -> void:
 	emit_signal("discovery_status", "Searching for server on local network...")
 	print("LAN discovery started")
 
+func _is_local_address(address: String) -> bool:
+	return address == "127.0.0.1" or address == "localhost" \
+		or address.begins_with("192.168.") \
+		or address.begins_with("10.") \
+		or address.begins_with("172.")
+
+func _build_url(address: String) -> String:
+	if _is_local_address(address):
+		# Connect directly to the Godot WebSocket server, bypassing the TLS proxy
+		return "ws://" + address + ":" + str(server_port)
+	return "wss://" + address + "/game"
+
 func _connect_to_server(address: String) -> void:
 	server_address = address
 	_connect_address_cache = address
@@ -162,7 +174,7 @@ func _connect_to_server(address: String) -> void:
 
 	_peer = WebSocketMultiplayerPeer.new()
 	_peer.handshake_timeout = 15.0
-	var url := "wss://" + server_address + "/game"
+	var url := _build_url(server_address)
 	var error: Error = _peer.create_client(url)
 	if error != OK:
 		printerr("Client connection failed: ", error)
