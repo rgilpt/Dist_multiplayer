@@ -12,6 +12,7 @@ var _is_observer: bool = false
 var my_team: int = -1
 var team_counts: Dictionary = {}
 var nm: Node = null
+var _connected: bool = false
 
 var _team_buttons: Dictionary = {}  # team_id -> Button
 
@@ -24,11 +25,14 @@ func _ready():
 		return
 
 	_build_team_buttons()
+	_set_buttons_enabled(false)
+	status_lbl.text = "Connecting to server..."
 
 	nm.team_data_updated.connect(_on_team_data_updated)
 	nm.game_started.connect(_on_game_started)
 	nm.game_mode_updated.connect(update_ui)
 	nm.discovery_status.connect(_on_discovery_status)
+	multiplayer.connected_to_server.connect(_on_connected_to_server)
 
 	update_ui()
 
@@ -95,7 +99,7 @@ func update_ui() -> void:
 		var count: int = team_counts.get(tid, 0)
 		btn.text = "%s\n%d/%d" % [tname, count, mpt]
 		var is_full := count >= mpt
-		btn.disabled = is_full or (my_team != -1)
+		btn.disabled = not _connected or is_full or (my_team != -1)
 		btn.visible = not (lock_empty and count == 0)
 		var c_arr = t.get("color", null)
 		if c_arr != null:
@@ -103,7 +107,10 @@ func update_ui() -> void:
 		else:
 			btn.modulate = Color(1, 1, 1) if not btn.disabled else Color(0.5, 0.5, 0.5)
 
-	if my_team != -1:
+	if not _connected:
+		status_lbl.text = "Connecting to server..."
+		status_lbl.add_theme_color_override("font_color", Color.YELLOW)
+	elif my_team != -1:
 		var t = nm._get_team_config(my_team)
 		var tname: String = t.get("team_name", "Team %d" % my_team)
 		var c_arr = t.get("color", null)
@@ -116,7 +123,17 @@ func update_ui() -> void:
 		status_lbl.text = "Pick your team!\nPlayers joined: %d/%d" % [total, mp]
 		status_lbl.add_theme_color_override("font_color", Color.WHITE)
 
+func _on_connected_to_server() -> void:
+	_connected = true
+	update_ui()
+
+func _set_buttons_enabled(enabled: bool) -> void:
+	for btn in _team_buttons.values():
+		btn.disabled = not enabled
+
 func _on_team_btn_pressed(team_id: int) -> void:
+	if multiplayer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		return
 	nm.rpc_claim_team.rpc(team_id)
 
 func _on_discovery_status(message: String) -> void:
