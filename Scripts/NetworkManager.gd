@@ -95,26 +95,19 @@ func _ready():
 		_peer.peer_connected.connect(_on_peer_connected)
 		_peer.peer_disconnected.connect(_on_peer_disconnected)
 		print("Host ready on ws://localhost:", server_port)
-		_start_discovery_listener()
 
 	else:
 		# Default: connect as client (--client flag is optional)
 		var addr_index := args.find("--address")
 		if addr_index != -1 and addr_index + 1 < args.size():
-			# Explicit address given — connect directly
 			server_address = args[addr_index + 1]
-			_connect_to_server(server_address)
-		else:
-			# No address: try LAN discovery first, fall back to remote server
-			_start_discovery_broadcast()
+		_connect_to_server(server_address)
 
 func _process(delta: float) -> void:
 	if is_game_active and multiplayer.is_server():
 		game_timer -= delta
 		if game_timer <= 0:
 			_end_game()
-
-	_process_discovery(delta)
 
 	if _is_client_connecting:
 		_connect_elapsed += delta
@@ -155,18 +148,6 @@ func _start_discovery_broadcast() -> void:
 	emit_signal("discovery_status", "Searching for server on local network...")
 	print("LAN discovery started")
 
-func _is_local_address(address: String) -> bool:
-	return address == "127.0.0.1" or address == "localhost" \
-		or address.begins_with("192.168.") \
-		or address.begins_with("10.") \
-		or address.begins_with("172.")
-
-func _build_url(address: String) -> String:
-	if _is_local_address(address):
-		# Connect directly to the Godot WebSocket server, bypassing the TLS proxy
-		return "ws://" + address + ":" + str(server_port)
-	return "wss://" + address + "/game"
-
 func _connect_to_server(address: String) -> void:
 	server_address = address
 	_connect_address_cache = address
@@ -181,7 +162,7 @@ func _connect_to_server(address: String) -> void:
 
 	_peer = WebSocketMultiplayerPeer.new()
 	_peer.handshake_timeout = 15.0
-	var url := _build_url(server_address)
+	var url := "wss://" + server_address + "/game"
 	var error: Error = _peer.create_client(url)
 	if error != OK:
 		printerr("Client connection failed: ", error)
@@ -234,11 +215,11 @@ func _process_discovery(delta: float) -> void:
 				return
 
 		if _discovery_elapsed >= DISCOVERY_TIMEOUT:
-			print("Discovery timed out — falling back to remote server: ", server_address)
+			print("Discovery timed out — falling back to ", server_address)
 			_discovering = false
 			_discovery_udp.close()
 			_discovery_udp = null
-			emit_signal("discovery_status", "No local server found. Connecting to remote...")
+			emit_signal("discovery_status", "No server found. Trying remote...")
 			_connect_to_server(server_address)
 
 func _get_level_builder():
