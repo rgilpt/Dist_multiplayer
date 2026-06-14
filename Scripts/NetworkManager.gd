@@ -43,6 +43,14 @@ var _discovering: bool = false
 var _discovery_timer: float = 0.0
 var _discovery_elapsed: float = 0.0
 
+const CONNECT_TIMEOUT: float = 5.0
+const CONNECT_MAX_RETRIES: int = 5
+var _is_client_connecting: bool = false
+var _connect_elapsed: float = 0.0
+var _reconnect_delay: float = 0.0
+var _connect_retries: int = 0
+var _connect_address_cache: String = ""
+
 var _initialized: bool = false
 var player_scene = preload("res://Scenes/Player.tscn")
 var team_config: Dictionary = {}
@@ -78,6 +86,7 @@ func _ready():
 		print("Initializing as SERVER...")
 		is_host = true
 		_peer = WebSocketMultiplayerPeer.new()
+		_peer.handshake_timeout = 15.0
 		var error: Error = _peer.create_server(server_port)
 		if error != OK:
 			printerr("Server creation failed: ", error)
@@ -95,13 +104,22 @@ func _ready():
 		_connect_to_server(server_address)
 
 func _process(delta: float) -> void:
-	if not is_game_active:
-		return
-	if not multiplayer.is_server():
-		return
-	game_timer -= delta
-	if game_timer <= 0:
-		_end_game()
+	if is_game_active and multiplayer.is_server():
+		game_timer -= delta
+		if game_timer <= 0:
+			_end_game()
+
+	if _is_client_connecting:
+		_connect_elapsed += delta
+		if _connect_elapsed >= CONNECT_TIMEOUT:
+			_is_client_connecting = false
+			_schedule_reconnect()
+
+	if _reconnect_delay > 0.0:
+		_reconnect_delay -= delta
+		if _reconnect_delay <= 0.0:
+			_reconnect_delay = 0.0
+			_connect_to_server(_connect_address_cache)
 
 # --- LAN Discovery ---
 
@@ -132,15 +150,30 @@ func _start_discovery_broadcast() -> void:
 
 func _connect_to_server(address: String) -> void:
 	server_address = address
+	_connect_address_cache = address
+
+	# Clean up any previous peer
+	if multiplayer.multiplayer_peer != null:
+		if multiplayer.connected_to_server.is_connected(_on_connected_to_server):
+			multiplayer.connected_to_server.disconnect(_on_connected_to_server)
+		if multiplayer.connection_failed.is_connected(_on_connection_failed):
+			multiplayer.connection_failed.disconnect(_on_connection_failed)
+		multiplayer.multiplayer_peer = null
+
 	_peer = WebSocketMultiplayerPeer.new()
+	_peer.handshake_timeout = 15.0
 	var url := "wss://" + server_address + "/game"
 	var error: Error = _peer.create_client(url)
 	if error != OK:
 		printerr("Client connection failed: ", error)
+		_schedule_reconnect()
 		return
 	multiplayer.multiplayer_peer = _peer
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
-	print("Connecting to ", url)
+	multiplayer.connection_failed.connect(_on_connection_failed)
+	_is_client_connecting = true
+	_connect_elapsed = 0.0
+	print("Connecting to %s (attempt %d)" % [url, _connect_retries + 1])
 
 func _process_discovery(delta: float) -> void:
 	if _discovery_udp == null:
@@ -300,8 +333,34 @@ func _apply_player_skin(player: Node, peer_id: int) -> void:
 	)
 
 func _on_connected_to_server() -> void:
-	multiplayer.connected_to_server.disconnect(_on_connected_to_server)
+	_is_client_connecting = false
+	_connect_retries = 0
+	if multiplayer.connected_to_server.is_connected(_on_connected_to_server):
+		multiplayer.connected_to_server.disconnect(_on_connected_to_server)
+	if multiplayer.connection_failed.is_connected(_on_connection_failed):
+		multiplayer.connection_failed.disconnect(_on_connection_failed)
 	print("Connected! My ID: ", multiplayer.get_unique_id())
+
+func _on_connection_failed() -> void:
+	_is_client_connecting = false
+	if multiplayer.connected_to_server.is_connected(_on_connected_to_server):
+		multiplayer.connected_to_server.disconnect(_on_connected_to_server)
+	if multiplayer.connection_failed.is_connected(_on_connection_failed):
+		multiplayer.connection_failed.disconnect(_on_connection_failed)
+	print("Connection failed — scheduling retry")
+	_schedule_reconnect()
+
+func _schedule_reconnect() -> void:
+	_connect_retries += 1
+	if _connect_retries > CONNECT_MAX_RETRIES:
+		printerr("Max connection retries reached. Giving up.")
+		emit_signal("discovery_status", "Could not connect. Check server is running.")
+		return
+	# Random jitter so multiple clients don't all retry at the same instant
+	_reconnect_delay = randf_range(1.0, 3.0)
+	var attempt := _connect_retries
+	emit_signal("discovery_status", "Retrying... (attempt %d/%d)" % [attempt, CONNECT_MAX_RETRIES])
+	print("Retry %d in %.1fs" % [attempt, _reconnect_delay])
 
 func _on_peer_connected(id: int) -> void:
 	print("Peer connected: ", id)
