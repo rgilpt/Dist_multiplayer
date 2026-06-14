@@ -49,3 +49,12 @@ layout_mode = 2
 [node name="StartBtn" type="Button" parent="Panel/VBox" unique_id=301909543]
 layout_mode = 2
 text = "Force Start"
+
+[node name="AmmoDrop" type="Button" parent="Panel/VBox" unique_id=301909544]
+layout_mode = 2
+visible = false
+text = "Drop Ammo on Map"
+
+[node name="AmmoCooldown" type="Label" parent="Panel/VBox" unique_id=301909545]
+layout_mode = 2
+visible = false

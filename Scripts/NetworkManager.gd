@@ -87,14 +87,12 @@ func _ready():
 		_peer.peer_disconnected.connect(_on_peer_disconnected)
 		print("Host ready on ws://localhost:", server_port)
 
-	elif "--client" in args:
+	else:
+		# Default: connect as client (--client flag is optional)
 		var addr_index := args.find("--address")
 		if addr_index != -1 and addr_index + 1 < args.size():
 			server_address = args[addr_index + 1]
-		# Always connect via the fixed relay URL; --address overrides the host part only
 		_connect_to_server(server_address)
-	else:
-		printerr("No --server or --client argument provided.")
 
 func _process(delta: float) -> void:
 	if not is_game_active:
@@ -460,7 +458,12 @@ func rpc_claim_team(team_id: int) -> void:
 		team_manager.peer_teams[peer_id] = team_id
 	# Broadcast to ALL peers including sender
 	rpc_update_team_counts.rpc(team_counts, peer_id, team_id)
-	if peer_teams.size() >= max_players:
+	# Auto-start once at least 2 teams each have max_per_team players
+	var full_teams := 0
+	for t in team_counts:
+		if team_counts[t] >= max_per_team:
+			full_teams += 1
+	if full_teams >= 2:
 		_begin_game_server()
 
 @rpc("any_peer", "call_local", "reliable")
@@ -600,6 +603,66 @@ func rpc_remove_flag(flag_team_id: int) -> void:
 func rpc_drop_flag(flag_team_id: int, drop_pos: Vector2) -> void:
 	flags_at_home[flag_team_id] = false
 	_create_flag_at(flag_team_id, drop_pos)
+
+# --- Ammo Drops ---
+
+var _ammo_drop_counter: int = 0
+
+func spawn_ammo_drop() -> void:
+	if not multiplayer.is_server():
+		return
+	var positions := _get_drop_positions()
+	if positions.is_empty():
+		return
+	_ammo_drop_counter += 1
+	var drop_name := "AmmoDrop%d" % _ammo_drop_counter
+	var pos: Vector2 = positions[randi() % positions.size()]
+	_create_ammo_drop(drop_name, pos)
+	rpc_create_ammo_drop.rpc(drop_name, pos)
+
+func _get_drop_positions() -> Array:
+	var file := FileAccess.open("res://JSON/level.json", FileAccess.READ)
+	if file == null:
+		return [Vector2(1752, 1552)]
+	var data = JSON.parse_string(file.get_as_text())
+	file.close()
+	var positions: Array = []
+	for room in data.get("rooms", []):
+		if room.get("name", "").begins_with("hq"):
+			continue  # skip team bases
+		var cx: float = room["position"]["x"] + room["size"]["width"] / 2.0
+		var cy: float = room["position"]["y"] + room["size"]["height"] / 2.0
+		positions.append(Vector2(cx, cy))
+	return positions
+
+func _create_ammo_drop(drop_name: String, pos: Vector2) -> void:
+	var scene: PackedScene = preload("res://Scenes/AmmoDrop.tscn")
+	var drop := scene.instantiate()
+	drop.name = drop_name
+	drop.global_position = pos
+	get_parent().add_child(drop)
+
+func remove_ammo_drop(drop_name: String) -> void:
+	var node := get_parent().get_node_or_null(drop_name)
+	if node:
+		node.queue_free()
+	rpc_remove_ammo_drop.rpc(drop_name)
+
+@rpc("authority", "call_remote", "reliable")
+func rpc_create_ammo_drop(drop_name: String, pos: Vector2) -> void:
+	_create_ammo_drop(drop_name, pos)
+
+@rpc("authority", "call_remote", "reliable")
+func rpc_remove_ammo_drop(drop_name: String) -> void:
+	var node := get_parent().get_node_or_null(drop_name)
+	if node:
+		node.queue_free()
+
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_request_ammo_drop() -> void:
+	if not multiplayer.is_server():
+		return
+	spawn_ammo_drop()
 
 @rpc("any_peer", "call_remote", "reliable")
 func rpc_show_game_over() -> void:
