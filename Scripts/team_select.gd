@@ -34,7 +34,8 @@ func _ready():
 	nm.discovery_status.connect(_on_discovery_status)
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	# Signal may have already fired before TeamSelect was ready
-	if multiplayer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+	var peer := multiplayer.multiplayer_peer
+	if peer != null and peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		_on_connected_to_server()
 
 	update_ui()
@@ -135,7 +136,8 @@ func _set_buttons_enabled(enabled: bool) -> void:
 		btn.disabled = not enabled
 
 func _on_team_btn_pressed(team_id: int) -> void:
-	if multiplayer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+	var peer := multiplayer.multiplayer_peer
+	if peer == null or peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
 		return
 	nm.rpc_claim_team.rpc(team_id)
 
