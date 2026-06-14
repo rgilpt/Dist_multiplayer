@@ -365,7 +365,7 @@ func _schedule_reconnect() -> void:
 	print("Retry %d in %.1fs" % [attempt, _reconnect_delay])
 
 func _on_peer_connected(id: int) -> void:
-	print("Peer connected: ", id, " | total peers now: ", _peer.get_peers().size())
+	print("Peer connected: ", id, " | total peers now: ", multiplayer.get_peers().size())
 	for child in players.get_children():
 		var existing_id := int(child.name)
 		if existing_id != id:
