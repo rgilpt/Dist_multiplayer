@@ -17,7 +17,7 @@ var game_timer: float = 180.0
 var server_address: String = "mflxp.pt"
 var server_port: int = 9000  # local port; clients connect via wss://mflxp.pt/game
 var is_host: bool = false
-var max_peers: int = 4
+var max_peers: int = 10
 
 var max_players: int = 4
 var max_per_team: int = 2
