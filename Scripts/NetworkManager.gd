@@ -366,7 +366,9 @@ func _schedule_reconnect() -> void:
 
 func _on_peer_connected(id: int) -> void:
 	print("Peer connected: ", id, " | total peers now: ", multiplayer.get_peers().size())
-	call_deferred("_send_initial_state_to_peer", id)
+	await get_tree().create_timer(0.5).timeout
+	if multiplayer.get_peers().has(id):
+		_send_initial_state_to_peer(id)
 
 func _send_initial_state_to_peer(id: int) -> void:
 	for child in players.get_children():
