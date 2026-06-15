@@ -154,19 +154,29 @@ func _on_game_started() -> void:
 		queue_free()
 		return
 
-	# Observer mode: hide team selection, show ammo drop panel
+	# Observer mode: hide team selection, show centered ammo drop panel
 	_is_observer = true
-	title_lbl.text = "Observer Mode"
 	btn_container.visible = false
 
+	# Center all content vertically and horizontally
+	var content := $Content as VBoxContainer
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+
+	title_lbl.text = "Observer Mode"
+	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
 	status_lbl.text = "You're watching!\nDrop ammo onto the map to help out."
+	status_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	status_lbl.add_theme_color_override("font_color", Color.YELLOW)
 
 	_observer_btn = Button.new()
 	_observer_btn.text = "Drop Ammo"
 	_observer_btn.custom_minimum_size = Vector2(200, 60)
+	_observer_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_observer_btn.pressed.connect(_on_observer_ammo_pressed)
-	$Content.add_child(_observer_btn)
+	content.add_child(_observer_btn)
 
 func _on_observer_ammo_pressed() -> void:
 	if nm:

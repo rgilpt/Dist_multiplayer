@@ -31,6 +31,9 @@ var _ready_to_sync: bool = false
 var max_health: int = 100
 var health: int = 100
 var _is_dead: bool = false
+var _bounce_velocity: Vector2 = Vector2.ZERO
+const BOUNCE_FORCE: float = 500.0
+const BOUNCE_DECAY: float = 8.0
 
 func _ready():
 	add_to_group("player")
@@ -50,7 +53,7 @@ func _ready():
 		_ready_to_sync = true
 
 
-func _physics_process(_delta):
+func _physics_process(delta):
 	if not is_local_player or _is_dead:
 		return
 
@@ -79,8 +82,18 @@ func _physics_process(_delta):
 	if input_dir != Vector2.ZERO:
 		input_dir = input_dir.normalized()
 
-	velocity = input_dir * speed
+	_bounce_velocity = _bounce_velocity.lerp(Vector2.ZERO, BOUNCE_DECAY * delta)
+	velocity = input_dir * speed + _bounce_velocity
 	move_and_slide()
+
+	for i in get_slide_collision_count():
+		var col := get_slide_collision(i)
+		var other := col.get_collider()
+		if other and other.is_in_group("player") and other != self:
+			var push_dir = (global_position - other.global_position)
+			if push_dir == Vector2.ZERO:
+				push_dir = Vector2.RIGHT
+			_bounce_velocity = push_dir.normalized() * BOUNCE_FORCE
 
 	if _ready_to_sync:
 		sync_position.rpc(global_position, sprite.flip_h, weapon_holder.rotation)

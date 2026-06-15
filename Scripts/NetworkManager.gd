@@ -460,6 +460,9 @@ func _spawn_local_player() -> void:
 		print("Local player already spawned, skipping.")
 		return
 	var my_team = peer_teams.get(my_id, -1)
+	if my_team == -1 or team_counts.get(my_team, 0) > max_per_team:
+		print("Observer peer %d has no team — skipping spawn." % my_id)
+		return
 	var spawn_pos := _get_spawn_position(my_team, my_id)
 	var player = player_scene.instantiate()
 	player.name = str(my_id)
@@ -581,6 +584,52 @@ func _end_game() -> void:
 	is_game_active = false
 	rpc_show_game_over.rpc()
 	print("Game Over! Scores: ", scores)
+	_write_game_log()
+
+func _write_game_log() -> void:
+	var timestamp := Time.get_datetime_string_from_system().replace(":", "-").replace("T", "_")
+	var path := "user://game_log_%s.txt" % timestamp
+	var lines: PackedStringArray = []
+
+	lines.append("=== DISTOPIA GAME LOG ===")
+	lines.append("Date: %s" % Time.get_datetime_string_from_system())
+	lines.append("")
+
+	# Teams and scores
+	lines.append("--- SCORES ---")
+	var sorted_teams := scores.keys()
+	sorted_teams.sort_custom(func(a, b): return scores[b] < scores[a])
+	for tid in sorted_teams:
+		if team_counts.get(tid, 0) == 0:
+			continue
+		var cfg := _get_team_config(tid)
+		var tname: String = cfg.get("team_name", "Team %d" % tid)
+		lines.append("  %s: %d point(s)" % [tname, scores[tid]])
+
+	lines.append("")
+
+	# Players per team
+	lines.append("--- PLAYERS ---")
+	for tid in team_counts:
+		if team_counts.get(tid, 0) == 0:
+			continue
+		var cfg := _get_team_config(tid)
+		var tname: String = cfg.get("team_name", "Team %d" % tid)
+		lines.append("  %s:" % tname)
+		for pid in peer_teams:
+			if peer_teams[pid] == tid:
+				lines.append("    Peer ID: %d" % pid)
+
+	lines.append("")
+	lines.append("=========================")
+
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		printerr("Could not write game log: ", FileAccess.get_open_error())
+		return
+	file.store_string("\n".join(lines))
+	file.close()
+	print("Game log saved to: ", path)
 
 func _create_flag_at(flag_team_id: int, pos: Vector2) -> void:
 	if flag_instances.get(flag_team_id) != null:

@@ -1,18 +1,25 @@
 [gd_scene format=3 uid="uid://mmodrop01"]
 
 [ext_resource type="Script" uid="uid://bfi6ubo3vprs6" path="res://Scripts/AmmoDrop.gd" id="1_amdrop"]
+[ext_resource type="Texture2D" uid="uid://daboiqcty4pw5" path="res://Assets/shine.png" id="2_f4llr"]
 [ext_resource type="Texture2D" uid="uid://dgdb42hfrffnq" path="res://Assets/ammo.png" id="2_sadxp"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_amdrop"]
-radius = 48.0
+radius = 8.062258
 
 [node name="AmmoDrop" type="Area2D" unique_id=183627176]
 collision_layer = 0
 script = ExtResource("1_amdrop")
 
+[node name="Shine" type="Sprite2D" parent="." unique_id=52324360]
+texture_filter = 1
+scale = Vector2(0.7, 0.7)
+texture = ExtResource("2_f4llr")
+
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=211546631]
 modulate = Color(1, 0.9, 0, 1)
-scale = Vector2(0.4, 0.4)
+texture_filter = 1
+scale = Vector2(0.7, 0.7)
 texture = ExtResource("2_sadxp")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1112384534]
