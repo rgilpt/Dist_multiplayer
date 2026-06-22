@@ -20,7 +20,10 @@ extends CharacterBody2D
 var is_player_one : bool = false
 var team_id: int = -1
 var is_local_player: bool = false
-var ammo : int = 6
+var ammo : int = 6          # gun clip
+var reserve_ammo : int = 8  # unloaded reserve
+const MAX_CLIP : int = 6
+const MAX_RESERVE : int = 14 # 6 + 14 = 20 total max
 var score : int = 0
 ## Which team's flag this player is carrying. -1 = none.
 var carried_flag_team: int = -1
@@ -34,6 +37,8 @@ var _is_dead: bool = false
 var _bounce_velocity: Vector2 = Vector2.ZERO
 const BOUNCE_FORCE: float = 500.0
 const BOUNCE_DECAY: float = 8.0
+var _is_reloading: bool = false
+const RELOAD_TIME: float = 1.5
 
 func _ready():
 	add_to_group("player")
@@ -109,9 +114,39 @@ func _input(event):
 		return
 	if event.is_action_pressed("shoot"):
 		fire()
+	if event.is_action_pressed("reload"):
+		_start_reload()
+
+func _start_reload() -> void:
+	if _is_reloading or ammo >= MAX_CLIP or reserve_ammo <= 0:
+		return
+	_is_reloading = true
+	var gun: Sprite2D = $WeaponHolder/Sprite2D
+	var original_color := gun.modulate
+
+	var tween := create_tween()
+	tween.tween_property(gun, "modulate", Color(1.0, 0.5, 0.0), 0.2)
+	tween.tween_property(gun, "modulate", Color(1.0, 1.0, 0.3), 0.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.set_loops(int(RELOAD_TIME / 0.4))
+	await get_tree().create_timer(RELOAD_TIME).timeout
+
+	_is_reloading = false
+	tween.kill()
+
+	# Draw from reserve to fill the clip
+	var needed := MAX_CLIP - ammo
+	var drawn := mini(needed, reserve_ammo)
+	ammo += drawn
+	reserve_ammo -= drawn
+	update_ammo_ui()
+
+	# Green flash to confirm reload complete
+	var finish_tween := create_tween()
+	finish_tween.tween_property(gun, "modulate", Color(0.3, 1.0, 0.3), 0.1)
+	finish_tween.tween_property(gun, "modulate", original_color, 0.3)
 
 func fire():
-	if ammo <= 0 or has_flag:
+	if ammo <= 0 or has_flag or _is_reloading:
 		return
 
 	ammo -= 1
@@ -222,13 +257,13 @@ func _respawn() -> void:
 
 func update_ammo_ui():
 	if ammo_ui:
-		ammo_ui.text = "Ammo: " + str(ammo)
+		ammo_ui.text = "%d(%d)" % [ammo, reserve_ammo]
 
 @rpc("any_peer", "call_local", "reliable")
 func rpc_refill_ammo() -> void:
 	if not is_local_player:
 		return
-	ammo = 6
+	reserve_ammo = MAX_RESERVE
 	update_ammo_ui()
 
 
