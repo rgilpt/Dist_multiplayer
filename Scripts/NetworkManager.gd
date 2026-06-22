@@ -599,6 +599,9 @@ func _server_reset_to_lobby() -> void:
 @rpc("authority", "call_local", "reliable")
 func rpc_reset_to_lobby() -> void:
 	for child in players.get_children():
+		# Stop position sync before freeing so no in-flight RPCs land on freed nodes
+		if "_ready_to_sync" in child:
+			child._ready_to_sync = false
 		child.queue_free()
 	for tid in flag_instances:
 		if flag_instances[tid]:
