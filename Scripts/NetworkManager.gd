@@ -610,6 +610,8 @@ func rpc_reset_to_lobby() -> void:
 	for child in get_parent().get_children():
 		if child.is_in_group("home_zone") or child.is_in_group("ammo_drop"):
 			child.queue_free()
+	for bullet in get_tree().get_nodes_in_group("bullet"):
+		bullet.queue_free()
 	peer_teams.clear()
 	for tid in team_counts:
 		team_counts[tid] = 0

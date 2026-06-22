@@ -1,7 +1,7 @@
 extends Control
 
 @onready var status_lbl: Label = $Content/Status
-@onready var btn_container: VBoxContainer = $Content/TeamList
+@onready var btn_container: GridContainer = $Content/TeamList
 @onready var title_lbl: Label = $Content/Label
 
 const AMMO_COOLDOWN: float = 40.0
@@ -68,7 +68,8 @@ func _build_team_buttons() -> void:
 			printerr("teams.json: duplicate team_id %d — skipping '%s'" % [tid, tname])
 			continue
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(150, 60)
+		btn.custom_minimum_size = Vector2(160, 60)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.text = tname
 		if c_arr != null:
 			btn.modulate = Color(c_arr[0], c_arr[1], c_arr[2])

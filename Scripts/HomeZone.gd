@@ -18,29 +18,35 @@ func _ready() -> void:
 func _physics_process(_delta: float) -> void:
 	if not multiplayer.is_server():
 		return
-	# Poll every frame so we don't miss the entry when position is set directly
+	var nm: Node = get_node_or_null("/root/Main/NetworkManager")
+	if nm == null or not nm.is_game_active:
+		return
 	for body in get_overlapping_bodies():
 		_try_score(body)
 
 func _on_body_entered(body: Node2D) -> void:
 	if not multiplayer.is_server():
 		return
+	var nm: Node = get_node_or_null("/root/Main/NetworkManager")
+	if nm == null or not nm.is_game_active:
+		return
 	if not body.is_in_group("player"):
 		return
-	var nm: Node = get_node("/root/Main/NetworkManager")
 	var player_team: int = nm.peer_teams.get(int(body.name), -1)
 	if player_team == team_id:
 		body.rpc_refill_ammo.rpc()
 	_try_score(body)
 
 func _try_score(body: Node2D) -> void:
-	if not body.is_in_group("player"):
+	if not is_instance_valid(body) or not body.is_in_group("player"):
 		return
 	var enemy_flag_team: int = body.carried_flag_team
 	if enemy_flag_team == -1 or enemy_flag_team == team_id:
 		return
 
-	var nm: Node = get_node("/root/Main/NetworkManager")
+	var nm: Node = get_node_or_null("/root/Main/NetworkManager")
+	if nm == null or not nm.is_game_active:
+		return
 	var player_team: int = nm.peer_teams.get(int(body.name), -1)
 	if player_team != team_id:
 		return

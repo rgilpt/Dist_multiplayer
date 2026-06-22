@@ -32,7 +32,7 @@ grow_vertical = 2
 color = Color(0, 0, 0, 0.9019608)
 
 [node name="Content" type="VBoxContainer" parent="." unique_id=735543251]
-custom_minimum_size = Vector2(300, 200)
+custom_minimum_size = Vector2(360, 200)
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -50,11 +50,13 @@ layout_mode = 2
 size_flags_horizontal = 4
 text = "Select your Team"
 
-[node name="TeamList" type="VBoxContainer" parent="Content" unique_id=1114888538]
+[node name="TeamList" type="GridContainer" parent="Content" unique_id=1114888538]
 layout_mode = 2
+columns = 2
 size_flags_horizontal = 4
 size_flags_vertical = 3
-theme_override_constants/separation = 10
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
 
 [node name="Status" type="Label" parent="Content" unique_id=82347462]
 layout_mode = 2

@@ -178,6 +178,7 @@ func server_spawn_bullet(pos: Vector2, direction: Vector2, shooter_team: int) ->
 	bullet.direction = direction
 	bullet.rotation = direction.angle()
 	bullet.shooter_team = shooter_team
+	bullet.add_to_group("bullet")
 	get_tree().root.add_child(bullet)
 
 func _spawn_bullet(direction: Vector2) -> void:
@@ -187,7 +188,7 @@ func _spawn_bullet(direction: Vector2) -> void:
 	bullet.direction = direction
 	bullet.rotation = direction.angle()
 	bullet.shooter_team = team_id
-	# Tint the visual bullet with this team's color
+	bullet.add_to_group("bullet")
 	var nm := get_node_or_null("/root/Main/NetworkManager")
 	if nm:
 		var cfg: Dictionary = nm._get_team_config(team_id)
@@ -205,6 +206,8 @@ func update_health_ui() -> void:
 
 func take_damage(amount: int) -> void:
 	if not multiplayer.is_server() or _is_dead:
+		return
+	if _nm and not _nm.is_game_active:
 		return
 	health -= amount
 	health = max(health, 0)

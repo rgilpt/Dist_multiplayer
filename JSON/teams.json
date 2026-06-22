@@ -41,6 +41,46 @@
 	  "flag_image": "Assets/flag.png"
 	},
 	{
+	  "team_id": 6,
+	  "team_name": "LuGu1",
+	  "color": [1.0, 1.0, 1.0],
+	  "player1_sprite": "Assets/player.png",
+	  "player2_sprite": "Assets/player2.png",
+	  "player1_weapon": "Assets/weapon.png",
+	  "player2_weapon": "Assets/weapon3.png",
+	  "flag_image": "Assets/flagLuGu.png"
+	},
+	{
+	  "team_id": 7,
+	  "team_name": "LuGu2",
+	  "color": [1.0, 1.0, 1.0],
+	  "player1_sprite": "Assets/player.png",
+	  "player2_sprite": "Assets/player3.png",
+	  "player1_weapon": "Assets/weapon.png",
+	  "player2_weapon": "Assets/weapon3.png",
+	  "flag_image": "Assets/flagLuGu.png"
+	},
+	{
+	  "team_id": 8,
+	  "team_name": "LuGu2",
+	  "color": [1.0, 1.0, 1.0],
+	  "player1_sprite": "Assets/player2.png",
+	  "player2_sprite": "Assets/player3.png",
+	  "player1_weapon": "Assets/weapon.png",
+	  "player2_weapon": "Assets/weapon3.png",
+	  "flag_image": "Assets/flagLuGu.png"
+	},
+	{
+	  "team_id": 9,
+	  "team_name": "ChisPoly",
+	  "color": [1.0, 1.0, 1.0],
+	  "player1_sprite": "Assets/Christian_Player1.png",
+	  "player2_sprite": "Assets/Poly_Player.png",
+	  "player1_weapon": "Assets/Christian_Weapon.png",
+	  "player2_weapon": "Assets/Poly_weapon.png",
+	  "flag_image": "Assets/Poly_weapon3.png"
+	},
+	{
 	  "team_id": 4,
 	  "team_name": "Green Loops",
 	  "color": [0.3, 0.7, 0.3],

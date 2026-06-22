@@ -13,9 +13,12 @@ func _physics_process(delta: float) -> void:
 func _on_area_2d_body_entered(body: Node2D) -> void:
 	if not multiplayer.is_server():
 		return
+	var nm := get_node_or_null("/root/Main/NetworkManager")
+	if nm == null or not nm.is_game_active:
+		queue_free()
+		return
 	if not body.is_in_group("player"):
 		return
-	# Ignore friendly fire
 	if body.team_id == shooter_team:
 		return
 	body.take_damage(25)
