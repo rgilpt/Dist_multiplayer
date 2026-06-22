@@ -24,6 +24,7 @@ func _ready():
 	nm.team_data_updated.connect(_on_team_data_updated)
 	nm.game_started.connect(_on_game_started)
 	nm.game_over.connect(_on_game_over)
+	nm.game_reset.connect(_on_game_reset)
 
 	start_btn.pressed.connect(_on_start_pressed)
 	ammo_btn.pressed.connect(_on_ammo_drop_pressed)
@@ -107,14 +108,23 @@ func _on_game_started() -> void:
 
 func _on_game_over() -> void:
 	ammo_btn.visible = false
+	timer_lbl.visible = false
+	scores_lbl.visible = true
 	var parts: Array = []
 	for tid in nm.scores:
 		if nm.team_counts.get(tid, 0) == 0:
 			continue
 		var cfg: Dictionary = nm._get_team_config(tid)
 		parts.append("%s: %d" % [cfg.get("team_name", "Team %d" % tid), nm.scores[tid]])
-	_update_status("— GAME OVER —\n" + "  |  ".join(parts))
+	_update_status("— GAME OVER —\n" + "  |  ".join(parts) + "\n\nResetting in 8s...")
+
+func _on_game_reset() -> void:
+	scores_lbl.visible = false
 	timer_lbl.visible = false
+	ammo_btn.visible = false
+	start_btn.visible = false
+	_ammo_cooldown = 0.0
+	_update_status("— LOBBY —\nWaiting for 2 full teams...")
 
 func _update_status(text: String) -> void:
 	if status_lbl:

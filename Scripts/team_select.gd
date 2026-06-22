@@ -151,7 +151,7 @@ func _on_game_started() -> void:
 	var mpt: int = nm.max_per_team if nm else 2
 	var on_full_team: bool = my_team != -1 and team_counts.get(my_team, 0) >= mpt
 	if on_full_team:
-		queue_free()
+		hide()
 		return
 
 	# Observer mode: hide team selection, show centered ammo drop panel
@@ -182,3 +182,21 @@ func _on_observer_ammo_pressed() -> void:
 	if nm:
 		nm.rpc_request_ammo_drop.rpc_id(1)
 	_ammo_cooldown = AMMO_COOLDOWN
+
+func reset() -> void:
+	my_team = -1
+	_is_observer = false
+	_ammo_cooldown = 0.0
+	if _observer_btn:
+		_observer_btn.queue_free()
+		_observer_btn = null
+	btn_container.visible = true
+	var content := $Content as VBoxContainer
+	content.alignment = BoxContainer.ALIGNMENT_BEGIN
+	title_lbl.text = "Select your Team"
+	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	title_lbl.size_flags_horizontal = Control.SIZE_FILL
+	status_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	status_lbl.size_flags_horizontal = Control.SIZE_FILL
+	visible = true
+	update_ui()

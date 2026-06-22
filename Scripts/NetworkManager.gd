@@ -26,6 +26,7 @@ signal flag_spawned
 signal flag_picked_up
 signal flag_scored
 signal game_over
+signal game_reset
 signal all_players_joined
 signal team_data_updated(counts: Dictionary, your_team: int)
 signal game_started
@@ -317,6 +318,8 @@ func _get_slot_in_team(peer_id: int, team_id: int) -> int:
 	return max(idx, 0)
 
 func _apply_player_skin(player: Node, peer_id: int) -> void:
+	if multiplayer.is_server():
+		return  # server doesn't render visuals
 	var team_id: int = peer_teams.get(peer_id, -1)
 	if team_id == -1:
 		return
@@ -585,6 +588,34 @@ func _end_game() -> void:
 	rpc_show_game_over.rpc()
 	print("Game Over! Scores: ", scores)
 	_write_game_log()
+	await get_tree().create_timer(8.0).timeout
+	_server_reset_to_lobby()
+
+func _server_reset_to_lobby() -> void:
+	if not multiplayer.is_server():
+		return
+	rpc_reset_to_lobby.rpc()
+
+@rpc("authority", "call_local", "reliable")
+func rpc_reset_to_lobby() -> void:
+	for child in players.get_children():
+		child.queue_free()
+	for tid in flag_instances:
+		if flag_instances[tid]:
+			flag_instances[tid].queue_free()
+	flag_instances.clear()
+	for child in get_parent().get_children():
+		if child.is_in_group("home_zone") or child.is_in_group("ammo_drop"):
+			child.queue_free()
+	peer_teams.clear()
+	for tid in team_counts:
+		team_counts[tid] = 0
+		flags_at_home[tid] = true
+	for tid in scores:
+		scores[tid] = 0
+	is_game_active = false
+	game_timer = 180.0
+	emit_signal("game_reset")
 
 func _write_game_log() -> void:
 	var timestamp := Time.get_datetime_string_from_system().replace(":", "-").replace("T", "_")
@@ -699,7 +730,7 @@ func _spawn_home_zones() -> void:
 		var zone: Node = hz_scene.instantiate()
 		zone.team_id = tid
 		zone.position = Vector2(hp["x"], hp["y"])
-		zone.add_to_group("home_zone")
+		zone.add_to_group("home_zone")  # used for cleanup on reset
 		get_parent().add_child(zone)
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -755,6 +786,7 @@ func _create_ammo_drop(drop_name: String, pos: Vector2) -> void:
 	var drop := scene.instantiate()
 	drop.name = drop_name
 	drop.global_position = pos
+	drop.add_to_group("ammo_drop")
 	get_parent().add_child(drop)
 
 func remove_ammo_drop(drop_name: String) -> void:
@@ -779,9 +811,9 @@ func rpc_request_ammo_drop() -> void:
 		return
 	spawn_ammo_drop()
 
-@rpc("any_peer", "call_remote", "reliable")
+@rpc("authority", "call_local", "reliable")
 func rpc_show_game_over() -> void:
-	print("Game Over!")
+	is_game_active = false
 	emit_signal("game_over")
 
 @rpc("authority", "call_remote", "reliable")

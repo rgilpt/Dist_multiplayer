@@ -20,6 +20,7 @@ extends CharacterBody2D
 var is_player_one : bool = false
 var team_id: int = -1
 var is_local_player: bool = false
+var _nm: Node = null
 var ammo : int = 6          # gun clip
 var reserve_ammo : int = 8  # unloaded reserve
 const MAX_CLIP : int = 6
@@ -54,12 +55,16 @@ func _ready():
 	#flag_area.body_entered.connect(_on_flag_area_body_entered)
 
 	if is_local_player:
+		_nm = get_node_or_null("/root/Main/NetworkManager")
 		await get_tree().create_timer(0.5).timeout
 		_ready_to_sync = true
 
 
 func _physics_process(delta):
 	if not is_local_player or _is_dead:
+		return
+	if _nm and not _nm.is_game_active:
+		velocity = Vector2.ZERO
 		return
 
 	# Rotate weapon holder to face mouse
@@ -111,6 +116,8 @@ func sync_position(pos: Vector2, flipped: bool, weapon_rot: float) -> void:
 
 func _input(event):
 	if not is_local_player or _is_dead:
+		return
+	if _nm and not _nm.is_game_active:
 		return
 	if event.is_action_pressed("shoot"):
 		fire()
